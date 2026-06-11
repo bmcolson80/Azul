@@ -463,7 +463,31 @@
   }
   .modal h2 { font-family: 'Cinzel', serif; font-size: 16px; letter-spacing: 3px; color: var(--gold); margin-bottom: 16px; text-align: center; }
 
-  /* End modal */
+  /* Color picker options */
+  .color-option {
+    cursor: pointer;
+    text-align: center;
+    padding: 16px 12px;
+    border-radius: 8px;
+    border: 2px solid rgba(255,255,255,0.1);
+    min-width: 72px;
+    user-select: none;
+    -webkit-user-select: none;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .color-option:active { border-color: var(--gold); background: rgba(201,162,39,0.1); }
+  .color-option .tile {
+    width: 52px; height: 52px; font-size: 24px;
+    margin: 0 auto 8px;
+    pointer-events: none;
+  }
+  .color-label {
+    font-size: 12px;
+    color: var(--cream-dark);
+    pointer-events: none;
+  }
+
+    /* End modal */
   .leaderboard { width: 100%; border-collapse: collapse; }
   .leaderboard th, .leaderboard td { padding: 10px 8px; text-align: left; font-size: 13px; border-bottom: 1px solid rgba(255,255,255,0.06); }
   .leaderboard th { font-size: 10px; letter-spacing: 2px; color: rgba(255,255,255,0.3); }
@@ -1082,44 +1106,54 @@ function sendToFloor() {
 
 // ── Color modal ───────────────────────────────────────────
 let _colorCb = null;
+let _colorChosen = false; // guard against touchend + click double-fire
 
 function openColorModal(colors, tiles, cb) {
   _colorCb = cb;
+  _colorChosen = false;
+
   document.getElementById('color-options').innerHTML = colors.map(c => `
-    <div class="color-option" data-color="${c}" style="cursor:pointer;text-align:center;padding:16px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.1)">
-      <div class="tile tile-${c}" style="width:48px;height:48px;font-size:22px;margin:0 auto 8px;pointer-events:none">${COLOR_SYMBOLS[c]}</div>
-      <div style="font-size:12px;color:var(--cream-dark);pointer-events:none">${tiles.filter(t=>t===c).length}× ${COLOR_NAMES[c]}</div>
+    <div class="color-option" data-color="${c}">
+      <div class="tile tile-${c}">${COLOR_SYMBOLS[c]}</div>
+      <div class="color-label">${tiles.filter(t=>t===c).length}× ${COLOR_NAMES[c]}</div>
     </div>
   `).join('');
 
-  // Attach listeners (avoids inline onclick issues on mobile)
   document.querySelectorAll('.color-option').forEach(el => {
-    el.addEventListener('click', (e) => {
-      e.stopPropagation();
-      chooseColor(el.dataset.color);
-    });
+    // touchend: handles mobile tap. preventDefault stops the ghost click.
     el.addEventListener('touchend', (e) => {
       e.preventDefault();
       e.stopPropagation();
-      chooseColor(el.dataset.color);
+      if (_colorChosen) return;
+      _colorChosen = true;
+      const color = el.dataset.color;
+      const savedCb = _colorCb;
+      closeColorModal();
+      if (savedCb) savedCb(color);
+    });
+    // click: handles desktop / fallback (guard prevents double-fire after touchend)
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (_colorChosen) return;
+      _colorChosen = true;
+      const color = el.dataset.color;
+      const savedCb = _colorCb;
+      closeColorModal();
+      if (savedCb) savedCb(color);
     });
   });
 
   const modal = document.getElementById('color-modal');
   modal.classList.add('open');
-
-  // Clicking the overlay background closes it, but NOT the modal content
-  modal.onclick = (e) => { if (e.target === modal) closeColorModal(); };
-}
-
-function chooseColor(c) {
-  closeColorModal();
-  if (_colorCb) _colorCb(c);
+  // Tapping the dark overlay (not the modal box) cancels
+  modal.ontouchend = (e) => { if (e.target === modal) { e.preventDefault(); closeColorModal(); } };
+  modal.onclick    = (e) => { if (e.target === modal) closeColorModal(); };
 }
 
 function closeColorModal() {
   document.getElementById('color-modal').classList.remove('open');
   _colorCb = null;
+  _colorChosen = false;
 }
 
 // ── End modal ─────────────────────────────────────────────
