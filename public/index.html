@@ -2,31 +2,25 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
 <title>Azul – Digital Edition</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Lato:wght@300;400;700&display=swap');
-:root {
-  --navy:#1a1f3a; --navy-light:#252c50; --navy-mid:#2e3760;
-  --gold:#c9a227; --gold-light:#e8c547;
-  --cream:#f5ecd7; --cream-dark:#e8d8b8;
-  --shadow:rgba(0,0,0,0.4); --radius:12px; --radius-sm:6px;
-}
+:root{--navy:#1a1f3a;--navy-light:#252c50;--navy-mid:#2e3760;--gold:#c9a227;--gold-light:#e8c547;--cream:#f5ecd7;--cream-dark:#e8d8b8;--shadow:rgba(0,0,0,0.4);--radius:12px;--radius-sm:6px}
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 body{background:var(--navy);color:var(--cream);font-family:'Lato',sans-serif;min-height:100vh;overflow-x:hidden}
-
-/* ── LOBBY ── */
-#lobby{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:24px;background:radial-gradient(ellipse at 50% 0%,#2e3760 0%,var(--navy) 70%)}
+.screen{display:none;min-height:100vh}
+.screen.active{display:block}
+.centered{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:24px;background:radial-gradient(ellipse at 50% 0%,#2e3760 0%,var(--navy) 70%)}
 .logo-tiles{display:grid;grid-template-columns:repeat(3,40px);gap:4px;margin:0 auto 16px;width:fit-content}
 .logo-tile{width:40px;height:40px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:18px;box-shadow:0 4px 12px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.2)}
 .logo-title{font-family:'Cinzel',serif;font-size:42px;font-weight:700;letter-spacing:8px;color:var(--gold);text-shadow:0 2px 20px rgba(201,162,39,.4)}
-.logo-sub{font-size:11px;letter-spacing:4px;color:var(--cream-dark);opacity:.7;margin-top:4px}
-.logo-area{text-align:center;margin-bottom:32px}
+.logo-sub{font-size:11px;letter-spacing:4px;color:var(--cream-dark);opacity:.7;margin-top:4px;text-align:center}
 .card{background:var(--navy-light);border:1px solid rgba(201,162,39,.2);border-radius:var(--radius);padding:24px;width:100%;max-width:380px;box-shadow:0 8px 32px var(--shadow)}
 .card h2{font-family:'Cinzel',serif;font-size:14px;letter-spacing:3px;color:var(--gold);margin-bottom:20px;text-align:center}
 .field-group{margin-bottom:16px}
 label{display:block;font-size:11px;letter-spacing:2px;color:var(--cream-dark);opacity:.6;margin-bottom:6px;text-transform:uppercase}
-input{width:100%;background:var(--navy);border:1px solid rgba(255,255,255,.15);border-radius:var(--radius-sm);color:var(--cream);font-family:'Lato',sans-serif;font-size:16px;padding:12px 14px;outline:none;transition:border-color .2s}
+input[type=text],input[type=email],input[type=password]{width:100%;background:var(--navy);border:1px solid rgba(255,255,255,.15);border-radius:var(--radius-sm);color:var(--cream);font-family:'Lato',sans-serif;font-size:16px;padding:12px 14px;outline:none;transition:border-color .2s}
 input:focus{border-color:var(--gold)}
 input.code-input{text-align:center;font-size:22px;letter-spacing:8px;font-weight:700}
 .btn{width:100%;padding:14px;border:none;border-radius:var(--radius-sm);font-family:'Cinzel',serif;font-size:13px;letter-spacing:2px;cursor:pointer;transition:all .2s;margin-bottom:10px}
@@ -35,41 +29,61 @@ input.code-input{text-align:center;font-size:22px;letter-spacing:8px;font-weight
 .btn-primary:disabled{opacity:.4;cursor:not-allowed;transform:none}
 .btn-secondary{background:transparent;border:1px solid rgba(201,162,39,.3);color:var(--gold)}
 .btn-secondary:active{background:rgba(201,162,39,.1)}
+.btn-danger{background:transparent;border:1px solid rgba(224,85,85,.3);color:#e08888}
+.btn-sm{padding:8px 14px;font-size:11px;margin-bottom:0;width:auto}
 .divider{text-align:center;color:rgba(255,255,255,.2);font-size:12px;letter-spacing:4px;margin:16px 0}
+.error-msg{background:rgba(224,85,85,.1);border:1px solid rgba(224,85,85,.3);border-radius:var(--radius-sm);padding:10px 14px;font-size:13px;color:#e08888;margin-bottom:12px;display:none}
+.link-btn{background:none;border:none;color:var(--gold);cursor:pointer;font-size:13px;text-decoration:underline;padding:0;font-family:'Lato',sans-serif}
 
-/* AI selector */
+/* ── DASHBOARD ── */
+.dashboard-header{background:var(--navy-light);border-bottom:1px solid rgba(201,162,39,.2);padding:14px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+.dashboard-header .dh-logo{font-family:'Cinzel',serif;font-size:18px;letter-spacing:4px;color:var(--gold)}
+.user-chip{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--cream-dark)}
+.user-chip .avatar{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,var(--gold),#a07a1a);display:flex;align-items:center;justify-content:center;font-family:'Cinzel',serif;font-size:13px;font-weight:700;color:var(--navy);flex-shrink:0}
+.dashboard-body{padding:20px;max-width:480px;margin:0 auto}
+.section-title{font-family:'Cinzel',serif;font-size:12px;letter-spacing:3px;color:var(--gold);margin-bottom:14px}
+.game-cards{display:flex;flex-direction:column;gap:10px;margin-bottom:28px}
+.game-card{background:var(--navy-light);border:1px solid rgba(255,255,255,.08);border-radius:var(--radius);padding:16px;display:flex;align-items:center;gap:14px}
+.game-card-info{flex:1;min-width:0}
+.game-card-code{font-family:'Cinzel',serif;font-size:20px;letter-spacing:4px;color:var(--gold)}
+.game-card-meta{font-size:12px;color:rgba(255,255,255,.4);margin-top:3px}
+.game-card-players{display:flex;gap:4px;margin-top:8px;flex-wrap:wrap}
+.player-pip{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.player-pip-name{font-size:11px;color:rgba(255,255,255,.5)}
+.game-phase-badge{font-size:10px;padding:2px 8px;border-radius:10px;white-space:nowrap}
+.phase-lobby{background:rgba(78,184,200,.15);color:#4eb8c8;border:1px solid rgba(78,184,200,.3)}
+.phase-game{background:rgba(201,162,39,.15);color:var(--gold);border:1px solid rgba(201,162,39,.3)}
+.no-games{text-align:center;color:rgba(255,255,255,.3);font-size:13px;padding:20px;letter-spacing:1px}
+
+/* ── AI slots ── */
 .ai-section{margin-bottom:18px}
 .ai-section-title{font-size:11px;letter-spacing:2px;color:var(--cream-dark);opacity:.6;text-transform:uppercase;margin-bottom:10px}
 .ai-slots{display:flex;flex-direction:column;gap:8px}
 .ai-slot{display:flex;align-items:center;gap:10px;background:var(--navy);border-radius:var(--radius-sm);padding:10px 12px;border:1px solid rgba(255,255,255,.08)}
 .ai-slot-label{font-size:13px;flex:1;color:var(--cream-dark)}
-.ai-difficulty-btns{display:flex;gap:4px}
-.diff-btn{padding:5px 10px;border-radius:4px;border:1px solid rgba(255,255,255,.15);background:transparent;color:rgba(255,255,255,.5);font-size:11px;letter-spacing:1px;cursor:pointer;font-family:'Lato',sans-serif;transition:all .2s;white-space:nowrap}
-.diff-btn:active{transform:scale(.95)}
+.ai-difficulty-btns{display:flex;gap:4px;flex-wrap:wrap}
+.diff-btn{padding:5px 9px;border-radius:4px;border:1px solid rgba(255,255,255,.15);background:transparent;color:rgba(255,255,255,.5);font-size:10px;letter-spacing:1px;cursor:pointer;font-family:'Lato',sans-serif;transition:all .2s}
 .diff-btn.active-rookie{background:rgba(78,184,200,.2);border-color:#4eb8c8;color:#4eb8c8}
 .diff-btn.active-veteran{background:rgba(212,160,23,.2);border-color:var(--gold);color:var(--gold)}
 .diff-btn.active-master{background:rgba(201,64,64,.2);border-color:#c94040;color:#e08080}
-.diff-btn.remove-ai{color:rgba(255,255,255,.3);border-color:rgba(255,255,255,.1)}
 .add-ai-btn{width:100%;padding:10px;border-radius:var(--radius-sm);border:1px dashed rgba(201,162,39,.3);background:transparent;color:rgba(201,162,39,.6);font-family:'Cinzel',serif;font-size:12px;letter-spacing:2px;cursor:pointer;transition:all .2s;margin-bottom:4px}
-.add-ai-btn:active{background:rgba(201,162,39,.08)}
 .add-ai-btn:disabled{opacity:.3;cursor:not-allowed}
 
-/* Waiting room */
+/* ── WAITING ── */
 .room-code-display{background:var(--navy);border:2px dashed var(--gold);border-radius:var(--radius-sm);text-align:center;padding:16px;margin-bottom:16px;cursor:pointer}
 .room-code-display .code{font-family:'Cinzel',serif;font-size:36px;letter-spacing:10px;color:var(--gold);font-weight:700}
 .room-code-display .code-label{font-size:10px;letter-spacing:3px;color:rgba(255,255,255,.4);margin-top:4px}
 .player-list{margin-bottom:16px}
 .player-item{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--navy);border-radius:var(--radius-sm);margin-bottom:8px;font-size:14px}
 .player-dot{width:10px;height:10px;border-radius:50%}
-.ai-badge{font-size:10px;padding:2px 7px;border-radius:10px;background:rgba(155,89,182,.2);border:1px solid rgba(155,89,182,.4);color:#c39bd3;margin-left:auto;letter-spacing:1px}
-.rookie-badge{background:rgba(78,184,200,.15);border-color:#4eb8c8;color:#4eb8c8}
-.veteran-badge{background:rgba(212,160,23,.15);border-color:var(--gold);color:var(--gold)}
-.master-badge{background:rgba(201,64,64,.15);border-color:#c94040;color:#e08080}
+.ai-badge{font-size:10px;padding:2px 7px;border-radius:10px;margin-left:auto;letter-spacing:1px}
+.rookie-badge{background:rgba(78,184,200,.15);border:1px solid #4eb8c8;color:#4eb8c8}
+.veteran-badge{background:rgba(212,160,23,.15);border:1px solid var(--gold);color:var(--gold)}
+.master-badge{background:rgba(201,64,64,.15);border:1px solid #c94040;color:#e08080}
 .waiting-text{text-align:center;font-size:12px;color:rgba(255,255,255,.3);letter-spacing:2px;padding:12px}
-.error-msg{background:rgba(224,85,85,.1);border:1px solid rgba(224,85,85,.3);border-radius:var(--radius-sm);padding:10px 14px;font-size:13px;color:#e08888;margin-bottom:12px;display:none}
 
 /* ── GAME ── */
-#game{display:none;min-height:100vh}
+#game-screen{display:none}
 .game-header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:var(--navy-light);border-bottom:1px solid rgba(201,162,39,.2);position:sticky;top:0;z-index:100}
 .game-header .round-info{font-family:'Cinzel',serif;font-size:11px;letter-spacing:2px;color:var(--gold)}
 .current-player-badge{font-size:10px;background:rgba(201,162,39,.15);border:1px solid rgba(201,162,39,.3);border-radius:20px;padding:4px 12px;color:var(--gold);font-family:'Cinzel',serif;letter-spacing:1px}
@@ -83,6 +97,11 @@ input.code-input{text-align:center;font-size:22px;letter-spacing:8px;font-weight
 .score-chip .sc-name{font-size:10px;color:rgba(255,255,255,.5);white-space:nowrap;max-width:80px;overflow:hidden;text-overflow:ellipsis}
 .score-chip .sc-pts{font-family:'Cinzel',serif;font-size:18px;color:var(--cream);font-weight:700}
 .sc-ai-tag{font-size:8px;letter-spacing:1px;opacity:.6;margin-top:1px}
+.ai-thinking{display:flex;align-items:center;gap:8px;padding:8px 16px;background:rgba(155,89,182,.08);border-bottom:1px solid rgba(155,89,182,.15);font-size:12px;color:#c39bd3;letter-spacing:1px}
+.ai-dots span{display:inline-block;width:5px;height:5px;border-radius:50%;background:#c39bd3;margin:0 2px;animation:dotbounce .9s infinite}
+.ai-dots span:nth-child(2){animation-delay:.2s}
+.ai-dots span:nth-child(3){animation-delay:.4s}
+@keyframes dotbounce{0%,80%,100%{transform:scale(.6);opacity:.4}40%{transform:scale(1);opacity:1}}
 .section-label{font-size:10px;letter-spacing:3px;color:rgba(255,255,255,.3);padding:12px 16px 6px;text-transform:uppercase}
 .factories-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;padding:4px 16px 12px}
 .factory{background:var(--navy-light);border:1px solid rgba(255,255,255,.1);border-radius:50%;aspect-ratio:1;display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:10px;transition:border-color .2s,transform .15s}
@@ -91,7 +110,7 @@ input.code-input{text-align:center;font-size:22px;letter-spacing:8px;font-weight
 .factory.empty{opacity:.3;pointer-events:none}
 .center-pool{margin:0 16px 12px;min-height:64px;background:var(--navy-light);border:1px dashed rgba(255,255,255,.15);border-radius:var(--radius);padding:12px;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 .center-empty{font-size:11px;color:rgba(255,255,255,.2);letter-spacing:2px;width:100%;text-align:center}
-.tile{width:28px;height:28px;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:14px;box-shadow:0 2px 6px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.25);cursor:pointer;transition:transform .15s,box-shadow .15s;flex-shrink:0;user-select:none}
+.tile{width:28px;height:28px;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:14px;box-shadow:0 2px 6px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.25);cursor:pointer;transition:transform .15s;flex-shrink:0;user-select:none}
 .tile:active{transform:scale(.9)}
 .tile-B{background:linear-gradient(135deg,#2e7bb5,#1a5a8a)}
 .tile-C{background:linear-gradient(135deg,#4eb8c8,#2d8a9a)}
@@ -101,7 +120,7 @@ input.code-input{text-align:center;font-size:22px;letter-spacing:8px;font-weight
 .tile-start{background:linear-gradient(135deg,#888,#444);font-size:10px}
 .center-tile-group{display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;padding:4px;border-radius:var(--radius-sm);transition:background .15s}
 .center-tile-group.selectable:active{background:rgba(255,255,255,.05)}
-.center-tile-group .count-badge{font-size:10px;background:rgba(0,0,0,.4);border-radius:10px;padding:1px 5px;color:var(--cream-dark)}
+.count-badge{font-size:10px;background:rgba(0,0,0,.4);border-radius:10px;padding:1px 5px;color:var(--cream-dark)}
 .tabs{display:flex;overflow-x:auto;gap:6px;padding:8px 16px;border-bottom:1px solid rgba(255,255,255,.06)}
 .tab-btn{flex-shrink:0;padding:6px 14px;border-radius:20px;border:1px solid rgba(255,255,255,.1);background:transparent;color:rgba(255,255,255,.5);font-size:12px;cursor:pointer;transition:all .2s;font-family:'Lato',sans-serif}
 .tab-btn.active{background:rgba(201,162,39,.15);border-color:rgba(201,162,39,.4);color:var(--gold)}
@@ -114,7 +133,7 @@ input.code-input{text-align:center;font-size:22px;letter-spacing:8px;font-weight
 .pattern-row{display:flex;justify-content:flex-end;gap:4px}
 .pattern-row.targetable{cursor:pointer}
 .pattern-row.targetable:active{opacity:.7}
-.pattern-slot{width:26px;height:26px;border-radius:4px;background:rgba(255,255,255,.05);border:1px dashed rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;transition:border-color .2s,background .2s}
+.pattern-slot{width:26px;height:26px;border-radius:4px;background:rgba(255,255,255,.05);border:1px dashed rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center}
 .pattern-slot.target{border-color:var(--gold);background:rgba(201,162,39,.1);animation:pulse 1s infinite alternate}
 @keyframes pulse{from{box-shadow:0 0 0 0 rgba(201,162,39,.4)}to{box-shadow:0 0 0 4px rgba(201,162,39,0)}}
 .wall-grid{padding:12px 12px 12px 4px;display:flex;flex-direction:column;gap:5px}
@@ -125,19 +144,11 @@ input.code-input{text-align:center;font-size:22px;letter-spacing:8px;font-weight
 .floor-slot{display:flex;flex-direction:column;align-items:center;gap:2px}
 .floor-penalty{font-size:9px;color:#e05555;font-weight:700}
 .floor-cell{width:26px;height:26px;border-radius:4px;background:rgba(224,85,85,.08);border:1px dashed rgba(224,85,85,.3);display:flex;align-items:center;justify-content:center}
+.row-select-hint{font-size:11px;color:var(--gold);letter-spacing:1px;text-align:center;padding:6px 12px;background:rgba(201,162,39,.08);border-bottom:1px solid rgba(201,162,39,.1)}
 .action-bar{position:fixed;bottom:0;left:0;right:0;background:var(--navy-light);border-top:1px solid rgba(201,162,39,.2);padding:12px 16px;z-index:200}
 .action-bar .action-hint{font-size:11px;color:rgba(255,255,255,.4);letter-spacing:1px;text-align:center;margin-bottom:8px}
 .action-btns{display:flex;gap:10px}
 .action-btns .btn{margin:0}
-.row-select-hint{font-size:11px;color:var(--gold);letter-spacing:1px;text-align:center;padding:6px 12px;background:rgba(201,162,39,.08);border-bottom:1px solid rgba(201,162,39,.1)}
-
-/* AI thinking indicator */
-.ai-thinking{display:flex;align-items:center;gap:8px;padding:8px 16px;background:rgba(155,89,182,.08);border-bottom:1px solid rgba(155,89,182,.15);font-size:12px;color:#c39bd3;letter-spacing:1px}
-.ai-dots span{display:inline-block;width:5px;height:5px;border-radius:50%;background:#c39bd3;margin:0 2px;animation:dotbounce .9s infinite}
-.ai-dots span:nth-child(2){animation-delay:.2s}
-.ai-dots span:nth-child(3){animation-delay:.4s}
-@keyframes dotbounce{0%,80%,100%{transform:scale(.6);opacity:.4}40%{transform:scale(1);opacity:1}}
-
 .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:500;align-items:center;justify-content:center;padding:20px}
 .modal-overlay.open{display:flex}
 .modal{background:var(--navy-light);border:1px solid rgba(201,162,39,.3);border-radius:var(--radius);padding:24px;width:100%;max-width:340px;max-height:80vh;overflow-y:auto}
@@ -160,56 +171,107 @@ input.code-input{text-align:center;font-size:22px;letter-spacing:8px;font-weight
 </head>
 <body>
 
-<!-- LOBBY -->
-<div id="lobby">
-  <div class="logo-area">
-    <div class="logo-tiles">
-      <div class="logo-tile tile-B">✦</div><div class="logo-tile tile-C">❋</div><div class="logo-tile tile-R">✿</div>
-      <div class="logo-tile tile-Y">❊</div><div class="logo-tile tile-K">✺</div><div class="logo-tile tile-B" style="opacity:.5">✦</div>
-      <div class="logo-tile tile-C" style="opacity:.5">❋</div><div class="logo-tile tile-R" style="opacity:.5">✿</div><div class="logo-tile tile-Y" style="opacity:.5">❊</div>
-    </div>
-    <div class="logo-title">AZUL</div>
-    <div class="logo-sub">DIGITAL EDITION</div>
-  </div>
-
-  <div class="card" id="card-main">
-    <div class="error-msg" id="lobby-error"></div>
-    <div class="field-group">
-      <label>Your Name</label>
-      <input type="text" id="player-name" placeholder="Enter your name" maxlength="20" autocomplete="off">
+<!-- ═══ AUTH SCREEN ═══ -->
+<div id="auth-screen" class="screen active">
+  <div class="centered">
+    <div style="text-align:center;margin-bottom:32px">
+      <div class="logo-tiles">
+        <div class="logo-tile tile-B">✦</div><div class="logo-tile tile-C">❋</div><div class="logo-tile tile-R">✿</div>
+        <div class="logo-tile tile-Y">❊</div><div class="logo-tile tile-K">✺</div><div class="logo-tile tile-B" style="opacity:.5">✦</div>
+        <div class="logo-tile tile-C" style="opacity:.5">❋</div><div class="logo-tile tile-R" style="opacity:.5">✿</div><div class="logo-tile tile-Y" style="opacity:.5">❊</div>
+      </div>
+      <div class="logo-title">AZUL</div>
+      <div class="logo-sub">DIGITAL EDITION</div>
     </div>
 
-    <!-- AI Player selector -->
-    <div class="ai-section">
-      <div class="ai-section-title">AI Opponents</div>
-      <div class="ai-slots" id="ai-slots"></div>
-      <button class="add-ai-btn" id="add-ai-btn" onclick="addAISlot()">+ Add AI Player</button>
+    <!-- Login -->
+    <div class="card" id="auth-login">
+      <h2>SIGN IN</h2>
+      <div class="error-msg" id="login-error"></div>
+      <div class="field-group"><label>Email</label><input type="email" id="login-email" placeholder="you@example.com" autocomplete="email"></div>
+      <div class="field-group"><label>Password</label><input type="password" id="login-password" placeholder="••••••••" autocomplete="current-password"></div>
+      <button class="btn btn-primary" id="login-btn" onclick="doLogin()">Sign In</button>
+      <div style="text-align:center;font-size:13px;color:rgba(255,255,255,.4)">
+        No account? <button class="link-btn" onclick="showRegister()">Create one</button>
+      </div>
     </div>
 
-    <button class="btn btn-primary" id="create-btn" onclick="createRoom()">Create Game</button>
-    <div class="divider">— OR JOIN —</div>
-    <div class="field-group">
-      <label>Room Code</label>
-      <input type="text" id="room-code-input" class="code-input" placeholder="XXXX" maxlength="4" autocomplete="off" oninput="this.value=this.value.toUpperCase()">
+    <!-- Register -->
+    <div class="card" id="auth-register" style="display:none">
+      <h2>CREATE ACCOUNT</h2>
+      <div class="error-msg" id="register-error"></div>
+      <div class="field-group"><label>Your Name</label><input type="text" id="reg-name" placeholder="Display name" maxlength="20" autocomplete="name"></div>
+      <div class="field-group"><label>Email</label><input type="email" id="reg-email" placeholder="you@example.com" autocomplete="email"></div>
+      <div class="field-group"><label>Password</label><input type="password" id="reg-password" placeholder="Min 6 characters" autocomplete="new-password"></div>
+      <button class="btn btn-primary" id="register-btn" onclick="doRegister()">Create Account</button>
+      <div style="text-align:center;font-size:13px;color:rgba(255,255,255,.4)">
+        Already have one? <button class="link-btn" onclick="showLogin()">Sign in</button>
+      </div>
     </div>
-    <button class="btn btn-secondary" id="join-btn" onclick="joinRoom()">Join Game</button>
-  </div>
-
-  <div class="card" id="card-waiting" style="display:none">
-    <h2>WAITING FOR PLAYERS</h2>
-    <div class="room-code-display" onclick="copyCode()">
-      <div class="code" id="display-room-code"></div>
-      <div class="code-label">TAP TO COPY · SHARE THIS CODE</div>
-    </div>
-    <div class="player-list" id="waiting-players"></div>
-    <div class="waiting-text" id="waiting-hint">Waiting...</div>
-    <button class="btn btn-primary" id="start-btn" onclick="startGame()" disabled>Start Game</button>
-    <button class="btn btn-secondary" onclick="leaveGame()">Leave</button>
   </div>
 </div>
 
-<!-- GAME -->
-<div id="game">
+<!-- ═══ DASHBOARD ═══ -->
+<div id="dashboard-screen" class="screen">
+  <div class="dashboard-header">
+    <div class="dh-logo">AZUL</div>
+    <div class="user-chip">
+      <div class="avatar" id="user-avatar">?</div>
+      <span id="user-name-display"></span>
+      <button class="btn btn-secondary btn-sm" onclick="doLogout()">Sign Out</button>
+    </div>
+  </div>
+
+  <div class="dashboard-body">
+    <!-- Active games -->
+    <div id="my-games-section">
+      <div class="section-title">YOUR ACTIVE GAMES</div>
+      <div class="game-cards" id="my-games-list"></div>
+    </div>
+
+    <!-- New game -->
+    <div class="section-title">NEW GAME</div>
+    <div class="card" style="margin-bottom:16px">
+      <div class="error-msg" id="dash-error"></div>
+      <div class="ai-section">
+        <div class="ai-section-title">AI Opponents</div>
+        <div class="ai-slots" id="ai-slots"></div>
+        <button class="add-ai-btn" id="add-ai-btn" onclick="addAISlot()">+ Add AI Player</button>
+      </div>
+      <button class="btn btn-primary" id="create-btn" onclick="createRoom()">Create Game</button>
+    </div>
+
+    <!-- Join existing -->
+    <div class="section-title">JOIN A GAME</div>
+    <div class="card">
+      <div class="field-group">
+        <label>Room Code</label>
+        <input type="text" id="join-code" class="code-input" placeholder="XXXX" maxlength="4" autocomplete="off" oninput="this.value=this.value.toUpperCase()">
+      </div>
+      <button class="btn btn-secondary" onclick="joinRoom()">Join Game</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ WAITING ROOM ═══ -->
+<div id="waiting-screen" class="screen">
+  <div class="centered">
+    <div class="card">
+      <h2>WAITING FOR PLAYERS</h2>
+      <div class="room-code-display" onclick="copyCode()">
+        <div class="code" id="display-room-code"></div>
+        <div class="code-label">TAP TO COPY · SHARE THIS CODE</div>
+      </div>
+      <div class="player-list" id="waiting-players"></div>
+      <div class="waiting-text" id="waiting-hint">Waiting...</div>
+      <button class="btn btn-primary" id="start-btn" onclick="startGame()" disabled>Start Game</button>
+      <button class="btn btn-secondary" onclick="backToDashboard()">Back</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ GAME ═══ -->
+<div id="game-screen">
   <div class="game-header">
     <div class="round-info">Round <span id="hdr-round">1</span></div>
     <span class="current-player-badge" id="hdr-turn">–</span>
@@ -236,18 +298,17 @@ input.code-input{text-align:center;font-size:22px;letter-spacing:8px;font-weight
   </div>
 </div>
 
-<!-- End modal -->
+<!-- Modals -->
 <div class="modal-overlay" id="end-modal">
   <div class="modal" onclick="event.stopPropagation()">
     <h2>GAME OVER</h2>
     <p style="text-align:center;font-size:12px;color:rgba(255,255,255,.4);letter-spacing:2px;margin-bottom:16px">FINAL SCORES</p>
     <table class="leaderboard" id="end-leaderboard"></table>
     <br>
-    <button class="btn btn-primary" onclick="leaveGame()">Play Again</button>
+    <button class="btn btn-primary" onclick="backToDashboard()">Back to Dashboard</button>
   </div>
 </div>
 
-<!-- Color modal -->
 <div class="modal-overlay" id="color-modal">
   <div class="modal" onclick="event.stopPropagation()">
     <h2>PICK A COLOR</h2>
@@ -261,84 +322,198 @@ input.code-input{text-align:center;font-size:22px;letter-spacing:8px;font-weight
 <div class="conn-badge conn-off" id="conn-badge">● CONNECTING</div>
 
 <script>
-const COLORS       = ['B','C','R','Y','K'];
-const COLOR_NAMES  = {B:'Blue',C:'Cyan',R:'Red',Y:'Yellow',K:'Black'};
-const COLOR_SYMBOLS= {B:'✦',C:'❋',R:'✿',Y:'❊',K:'✺'};
+// ── Constants ─────────────────────────────────────────────
+const COLOR_SYMBOLS = {B:'✦',C:'❋',R:'✿',Y:'❊',K:'✺'};
+const COLOR_NAMES   = {B:'Blue',C:'Cyan',R:'Red',Y:'Yellow',K:'Black'};
 const FLOOR_PENALTIES = [-1,-1,-2,-2,-2,-3,-3];
-const WALL_PATTERN = [
-  ['B','Y','R','K','C'],['C','B','Y','R','K'],['K','C','B','Y','R'],
-  ['R','K','C','B','Y'],['Y','R','K','C','B'],
-];
-const DIFF_LABELS = { rookie:'Rookie', veteran:'Veteran', master:'Master' };
-const DIFF_ICONS  = { rookie:'🟦', veteran:'🟨', master:'🟥' };
+const WALL_PATTERN  = [['B','Y','R','K','C'],['C','B','Y','R','K'],['K','C','B','Y','R'],['R','K','C','B','Y'],['Y','R','K','C','B']];
+const DIFF_LABELS   = {rookie:'Rookie',veteran:'Veteran',master:'Master'};
+const DIFF_ICONS    = {rookie:'🟦',veteran:'🟨',master:'🟥'};
 
-// ── state ──
-let ws = null, myId = null, myRoomCode = null, gameState = null, viewingPlayer = 0;
+// ── App state ─────────────────────────────────────────────
+let currentUser  = null;
+let ws           = null;
+let myId         = null;
+let myRoomCode   = null;
+let gameState    = null;
+let viewingPlayer = 0;
 let selectedSource = null, selectedRow = null;
+let aiSlots      = [];
 
-// ── AI slot UI state ──
-let aiSlots = []; // array of difficulty strings or null
+// ── Screen management ──────────────────────────────────────
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.screen').forEach(s => s.style.display = 'none');
+  document.getElementById('game-screen').style.display = 'none';
 
+  if (id === 'game') {
+    document.getElementById('game-screen').style.display = 'block';
+  } else {
+    const el = document.getElementById(id+'-screen');
+    if (el) { el.style.display = 'block'; el.classList.add('active'); }
+  }
+}
+
+// ── Auth ──────────────────────────────────────────────────
+function showLogin()    { document.getElementById('auth-login').style.display='block'; document.getElementById('auth-register').style.display='none'; }
+function showRegister() { document.getElementById('auth-login').style.display='none'; document.getElementById('auth-register').style.display='block'; }
+
+async function doLogin() {
+  const email    = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value;
+  if (!email || !password) return showAuthError('login', 'Email and password required');
+  document.getElementById('login-btn').disabled = true;
+  try {
+    const res = await fetch('/api/login', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({email,password}) });
+    const data = await res.json();
+    if (!res.ok) { showAuthError('login', data.error); document.getElementById('login-btn').disabled = false; return; }
+    currentUser = data.user;
+    onLoggedIn();
+  } catch { showAuthError('login', 'Connection error'); document.getElementById('login-btn').disabled = false; }
+}
+
+async function doRegister() {
+  const name     = document.getElementById('reg-name').value.trim();
+  const email    = document.getElementById('reg-email').value.trim();
+  const password = document.getElementById('reg-password').value;
+  if (!name || !email || !password) return showAuthError('register', 'All fields required');
+  document.getElementById('register-btn').disabled = true;
+  try {
+    const res = await fetch('/api/register', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({name,email,password}) });
+    const data = await res.json();
+    if (!res.ok) { showAuthError('register', data.error); document.getElementById('register-btn').disabled = false; return; }
+    currentUser = data.user;
+    onLoggedIn();
+  } catch { showAuthError('register', 'Connection error'); document.getElementById('register-btn').disabled = false; }
+}
+
+async function doLogout() {
+  await fetch('/api/logout', { method:'POST' });
+  currentUser = null;
+  ws?.close();
+  showScreen('auth');
+}
+
+function showAuthError(form, msg) {
+  const el = document.getElementById(form+'-error');
+  el.textContent = msg; el.style.display = 'block';
+}
+
+function onLoggedIn() {
+  document.getElementById('user-avatar').textContent = currentUser.name.charAt(0).toUpperCase();
+  document.getElementById('user-name-display').textContent = currentUser.name;
+  renderAISlots();
+  loadMyGames();
+  showScreen('dashboard');
+  connectWS();
+}
+
+// ── Check session on load ──────────────────────────────────
+async function checkSession() {
+  try {
+    const res = await fetch('/api/me');
+    if (res.ok) {
+      const data = await res.json();
+      currentUser = data.user;
+      onLoggedIn();
+    } else {
+      showScreen('auth');
+    }
+  } catch {
+    showScreen('auth');
+  }
+}
+
+// ── My games ───────────────────────────────────────────────
+async function loadMyGames() {
+  try {
+    const res  = await fetch('/api/my-games');
+    const data = await res.json();
+    renderMyGames(data.games || []);
+  } catch { renderMyGames([]); }
+}
+
+function renderMyGames(games) {
+  const list    = document.getElementById('my-games-list');
+  const section = document.getElementById('my-games-section');
+  if (!games.length) {
+    list.innerHTML = '<div class="no-games">No active games yet</div>';
+    section.style.display = 'block';
+    return;
+  }
+  section.style.display = 'block';
+  list.innerHTML = games.map(g => {
+    const phaseLabel = g.phase === 'lobby' ? 'In Lobby' : `Round ${g.round}`;
+    const phaseCls   = g.phase === 'lobby' ? 'phase-lobby' : 'phase-game';
+    const timeAgo    = formatTimeAgo(g.updatedAt);
+    const playerList = (g.players||[]).map(p =>
+      `<span class="player-pip" style="background:${p.color};display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:3px"></span><span class="player-pip-name">${p.name.split(' (')[0]}</span>`
+    ).join('<span style="color:rgba(255,255,255,.2);margin:0 4px">·</span>');
+    return `<div class="game-card">
+      <div class="game-card-info">
+        <div class="game-card-code">${g.roomCode}</div>
+        <div class="game-card-meta">${timeAgo}</div>
+        <div class="game-card-players" style="margin-top:6px;font-size:11px;color:rgba(255,255,255,.5)">${playerList}</div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px">
+        <span class="game-phase-badge ${phaseCls}">${phaseLabel}</span>
+        <button class="btn btn-secondary btn-sm" onclick="rejoinRoom('${g.roomCode}')">Rejoin</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function formatTimeAgo(unixTs) {
+  const secs = Math.floor(Date.now()/1000) - unixTs;
+  if (secs < 60)   return 'just now';
+  if (secs < 3600) return `${Math.floor(secs/60)}m ago`;
+  if (secs < 86400)return `${Math.floor(secs/3600)}h ago`;
+  return `${Math.floor(secs/86400)}d ago`;
+}
+
+// ── AI slots UI ────────────────────────────────────────────
 function addAISlot() {
-  const totalPlayers = 1 + aiSlots.filter(Boolean).length + 1; // +1 for new
-  if (aiSlots.length >= 3 || 1 + aiSlots.filter(s=>s).length + 1 > 4) return;
+  if (1 + aiSlots.length >= 4) return;
   aiSlots.push('rookie');
   renderAISlots();
 }
-
-function removeAISlot(idx) {
-  aiSlots.splice(idx, 1);
-  renderAISlots();
-}
-
-function setAIDifficulty(idx, diff) {
-  aiSlots[idx] = diff;
-  renderAISlots();
-}
+function removeAISlot(i) { aiSlots.splice(i,1); renderAISlots(); }
+function setAIDiff(i,d)  { aiSlots[i]=d; renderAISlots(); }
 
 function renderAISlots() {
   const container = document.getElementById('ai-slots');
   const addBtn    = document.getElementById('add-ai-btn');
-  const humanCount = 1;
-  const totalPossible = humanCount + aiSlots.length;
-
-  container.innerHTML = aiSlots.map((diff, i) => `
+  if (!container) return;
+  container.innerHTML = aiSlots.map((diff,i) => `
     <div class="ai-slot">
       <span class="ai-slot-label">${DIFF_ICONS[diff]} AI Player ${i+1}</span>
       <div class="ai-difficulty-btns">
-        ${['rookie','veteran','master'].map(d => `
-          <button class="diff-btn ${diff===d ? 'active-'+d : ''}"
-            onclick="setAIDifficulty(${i},'${d}')">${DIFF_LABELS[d]}</button>
-        `).join('')}
-        <button class="diff-btn remove-ai" onclick="removeAISlot(${i})">✕</button>
+        ${['rookie','veteran','master'].map(d=>`<button class="diff-btn ${diff===d?'active-'+d:''}" onclick="setAIDiff(${i},'${d}')">${DIFF_LABELS[d]}</button>`).join('')}
+        <button class="diff-btn" style="color:rgba(255,255,255,.3);border-color:rgba(255,255,255,.1)" onclick="removeAISlot(${i})">✕</button>
       </div>
-    </div>
-  `).join('');
-
-  addBtn.disabled = totalPossible >= 4;
+    </div>`).join('');
+  if (addBtn) addBtn.disabled = 1+aiSlots.length >= 4;
 }
 
-renderAISlots();
-
-// ── WebSocket ──
-function connect() {
-  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+// ── WebSocket ──────────────────────────────────────────────
+function connectWS() {
+  const proto = location.protocol==='https:'?'wss':'ws';
   ws = new WebSocket(`${proto}://${location.host}`);
-  ws.onopen  = () => setBadge(true);
-  ws.onclose = () => { setBadge(false); setTimeout(connect, 2000); };
+  ws.onopen  = () => { setBadge(true); };
+  ws.onclose = () => { setBadge(false); setTimeout(connectWS, 2000); };
   ws.onerror = () => setBadge(false);
-  ws.onmessage = ev => { try { handleMessage(JSON.parse(ev.data)); } catch {} };
+  ws.onmessage = ev => { try { handleWSMessage(JSON.parse(ev.data)); } catch {} };
 }
 
 function sendWS(data) { if (ws?.readyState===1) ws.send(JSON.stringify(data)); }
-function setBadge(ok) {
-  const b = document.getElementById('conn-badge');
-  b.textContent = ok ? '● LIVE' : '● OFFLINE';
-  b.className = 'conn-badge ' + (ok ? 'conn-ok' : 'conn-off');
+function setBadge(ok)  {
+  const b=document.getElementById('conn-badge');
+  b.textContent=ok?'● LIVE':'● OFFLINE';
+  b.className='conn-badge '+(ok?'conn-ok':'conn-off');
 }
 
-// ── Message handling ──
-function handleMessage(msg) {
+// ── WS messages ────────────────────────────────────────────
+function handleWSMessage(msg) {
   switch (msg.type) {
     case 'room_created':
       myId = msg.playerId; myRoomCode = msg.roomCode;
@@ -348,6 +523,19 @@ function handleMessage(msg) {
       myId = msg.playerId; myRoomCode = msg.roomCode;
       showWaitingRoom(msg.players);
       break;
+    case 'room_rejoined':
+      myId = msg.playerId; myRoomCode = msg.roomCode;
+      if (msg.gameState && msg.gameState.phase === 'game') {
+        gameState = msg.gameState;
+        viewingPlayer = msg.gameState.players.findIndex(p => p.id === myId);
+        if (viewingPlayer < 0) viewingPlayer = 0;
+        showScreen('game');
+        renderGame();
+      } else {
+        showWaitingRoom(msg.players);
+        if (msg.gameState) gameState = msg.gameState;
+      }
+      break;
     case 'lobby_update':
       updateWaitingList(msg.players);
       break;
@@ -355,8 +543,7 @@ function handleMessage(msg) {
       gameState = msg.gameState;
       viewingPlayer = msg.gameState.players.findIndex(p => p.id === myId);
       if (viewingPlayer < 0) viewingPlayer = 0;
-      document.getElementById('lobby').style.display = 'none';
-      document.getElementById('game').style.display  = 'block';
+      showScreen('game');
       renderGame();
       break;
     case 'state_update':
@@ -369,369 +556,295 @@ function handleMessage(msg) {
       showToast('A player left');
       break;
     case 'error':
-      showError(msg.message);
-      document.getElementById('create-btn').disabled = false;
-      document.getElementById('join-btn').disabled   = false;
+      showDashError(msg.message);
+      setButtonsEnabled(true);
       break;
   }
 }
 
-// ── Lobby actions ──
+// ── Room actions ───────────────────────────────────────────
 function createRoom() {
-  const name = document.getElementById('player-name').value.trim();
-  if (!name) return showError('Please enter your name.');
-  hideError();
-  document.getElementById('create-btn').disabled = true;
-  const aiDifficulties = aiSlots.filter(Boolean);
-  sendWS({ type: 'create_room', playerName: name, aiPlayers: aiDifficulties });
+  document.getElementById('dash-error').style.display = 'none';
+  setButtonsEnabled(false);
+  sendWS({ type:'create_room', playerName: currentUser.name, aiPlayers: aiSlots.filter(Boolean) });
 }
 
 function joinRoom() {
-  const name = document.getElementById('player-name').value.trim();
-  const code = document.getElementById('room-code-input').value.trim().toUpperCase();
-  if (!name) return showError('Please enter your name.');
-  if (code.length !== 4) return showError('Enter a 4-letter room code.');
-  hideError();
-  document.getElementById('join-btn').disabled = true;
-  sendWS({ type: 'join_room', playerName: name, roomCode: code });
+  const code = document.getElementById('join-code').value.trim().toUpperCase();
+  if (code.length !== 4) return showDashError('Enter a 4-letter room code.');
+  document.getElementById('dash-error').style.display = 'none';
+  sendWS({ type:'join_room', playerName: currentUser.name, roomCode: code });
 }
 
-function startGame() { sendWS({ type: 'start_game' }); }
+function rejoinRoom(code) {
+  sendWS({ type:'rejoin_room', roomCode: code });
+}
 
-function leaveGame() { sendWS({ type: 'leave_room' }); location.reload(); }
+function startGame()    { sendWS({ type:'start_game' }); }
+
+function backToDashboard() {
+  document.getElementById('end-modal').classList.remove('open');
+  selectedSource = null; selectedRow = null; gameState = null;
+  loadMyGames();
+  showScreen('dashboard');
+}
 
 function copyCode() {
   if (navigator.clipboard) { navigator.clipboard.writeText(myRoomCode); showToast('Code copied!'); }
 }
 
 function showWaitingRoom(players) {
-  document.getElementById('card-main').style.display    = 'none';
-  document.getElementById('card-waiting').style.display = 'block';
   document.getElementById('display-room-code').textContent = myRoomCode;
   updateWaitingList(players);
+  showScreen('waiting');
 }
 
 function updateWaitingList(players) {
   document.getElementById('waiting-players').innerHTML = players.map(p => {
     const badge = p.isAI
       ? `<span class="ai-badge ${p.difficulty}-badge">${DIFF_LABELS[p.difficulty]??'AI'}</span>`
-      : (p.id === myId ? '<span style="font-size:10px;opacity:.4;margin-left:auto">(you)</span>' : '');
+      : (p.id===myId ? '<span style="font-size:10px;opacity:.4;margin-left:auto">(you)</span>' : '');
     return `<div class="player-item">
       <div class="player-dot" style="background:${p.color}"></div>
       <span>${p.name}</span>${badge}
     </div>`;
   }).join('');
-
-  const n = players.length;
-  const iAmHost = players[0]?.id === myId;
-  const humanPlayers = players.filter(p => !p.isAI).length;
-  document.getElementById('waiting-hint').textContent =
-    n < 2 ? `Need ${2 - n} more player(s)…` : `${n} player(s) ready`;
-  const startBtn = document.getElementById('start-btn');
-  startBtn.disabled = n < 2 || !iAmHost;
-  startBtn.textContent = iAmHost
-    ? (n >= 2 ? `Start Game (${n} players)` : 'Need at least 2 players')
-    : 'Waiting for host…';
+  const n = players.length, iAmHost = players[0]?.id === myId;
+  document.getElementById('waiting-hint').textContent = n<2 ? `Need ${2-n} more…` : `${n} ready`;
+  const btn = document.getElementById('start-btn');
+  btn.disabled = n<2||!iAmHost;
+  btn.textContent = iAmHost ? (n>=2?`Start (${n} players)`:'Need 2+ players') : 'Waiting for host…';
 }
 
-// ── Game rendering ──
-function myIndex() { return gameState?.players.findIndex(p => p.id === myId) ?? -1; }
-function isMyTurn() { return gameState?.players[gameState.currentPlayer]?.id === myId; }
+function setButtonsEnabled(on) {
+  ['create-btn'].forEach(id => { const el=document.getElementById(id); if(el) el.disabled=!on; });
+}
+
+function showDashError(msg) {
+  const el = document.getElementById('dash-error');
+  if (el) { el.textContent=msg; el.style.display='block'; setButtonsEnabled(true); }
+}
+
+// ── Game rendering ─────────────────────────────────────────
+function myIndex()   { return gameState?.players.findIndex(p=>p.id===myId)??-1; }
+function isMyTurn()  { return gameState?.players[gameState.currentPlayer]?.id===myId; }
 
 function renderGame() {
-  const gs = gameState;
-  if (!gs) return;
-
-  const cp = gs.players[gs.currentPlayer];
-  document.getElementById('hdr-round').textContent = gs.round;
-  document.getElementById('hdr-turn').textContent  =
-    cp?.id === myId ? 'Your Turn' : `${cp?.name}'s Turn`;
-  const phaseEl = document.getElementById('hdr-phase');
-  phaseEl.textContent = gs.phase === 'factory' ? 'Factory Offer'
-                      : gs.phase === 'wall-tiling' ? 'Wall-Tiling' : 'Game Over';
-  phaseEl.className = 'phase-badge ' + (gs.phase === 'factory' ? 'phase-factory'
-                    : gs.phase === 'wall-tiling' ? 'phase-wall' : 'phase-end');
-
-  // AI thinking bar
-  const thinkingBar = document.getElementById('ai-thinking-bar');
-  if (cp?.isAI && gs.phase === 'factory') {
-    document.getElementById('ai-thinking-name').textContent = cp.name;
-    thinkingBar.style.display = 'flex';
-  } else {
-    thinkingBar.style.display = 'none';
-  }
-
-  // Scores
-  document.getElementById('scores-bar').innerHTML = gs.players.map((p, i) => `
-    <div class="score-chip ${i === gs.currentPlayer ? 'active-turn' : ''}">
+  const gs=gameState; if(!gs) return;
+  const cp=gs.players[gs.currentPlayer];
+  document.getElementById('hdr-round').textContent=gs.round;
+  document.getElementById('hdr-turn').textContent=cp?.id===myId?'Your Turn':`${cp?.name.split(' (')[0]}'s Turn`;
+  const ph=document.getElementById('hdr-phase');
+  ph.textContent=gs.phase==='factory'?'Factory Offer':gs.phase==='wall-tiling'?'Wall-Tiling':'Game Over';
+  ph.className='phase-badge '+(gs.phase==='factory'?'phase-factory':gs.phase==='wall-tiling'?'phase-wall':'phase-end');
+  const tb=document.getElementById('ai-thinking-bar');
+  if(cp?.isAI&&gs.phase==='factory'){document.getElementById('ai-thinking-name').textContent=cp.name.split(' (')[0];tb.style.display='flex';}
+  else tb.style.display='none';
+  document.getElementById('scores-bar').innerHTML=gs.players.map((p,i)=>`
+    <div class="score-chip ${i===gs.currentPlayer?'active-turn':''}">
       <div class="sc-name"><span class="color-dot" style="background:${p.color}"></span>${p.name.split(' (')[0]}</div>
       <div class="sc-pts">${gs.boards[i].score}</div>
-      ${p.isAI ? `<div class="sc-ai-tag">${p.difficulty??''}</div>` : ''}
-    </div>
-  `).join('');
-
-  // Tabs
-  document.getElementById('board-tabs').innerHTML = gs.players.map((p, i) => `
-    <button class="tab-btn ${i === viewingPlayer ? 'active' : ''}" onclick="switchTab(${i})">
-      <span class="color-dot" style="background:${p.color}"></span>${i === myIndex() ? 'My Board' : p.name.split(' (')[0]}
-    </button>
-  `).join('');
-
-  renderFactories();
-  renderCenter();
-  renderBoard(viewingPlayer);
-  renderActionBar();
-
-  if (gs.phase === 'end') showEndModal();
+      ${p.isAI?`<div class="sc-ai-tag">${p.difficulty??''}</div>`:''}
+    </div>`).join('');
+  document.getElementById('board-tabs').innerHTML=gs.players.map((p,i)=>`
+    <button class="tab-btn ${i===viewingPlayer?'active':''}" onclick="switchTab(${i})">
+      <span class="color-dot" style="background:${p.color}"></span>${i===myIndex()?'My Board':p.name.split(' (')[0]}
+    </button>`).join('');
+  renderFactories(); renderCenter(); renderBoard(viewingPlayer); renderActionBar();
+  if(gs.phase==='end') showEndModal();
 }
 
 function renderFactories() {
-  const gs = gameState;
-  const canPick = isMyTurn() && gs.phase === 'factory' && !selectedSource;
-  document.getElementById('factories-grid').innerHTML = gs.factories.map((tiles, fi) => {
-    if (!tiles.length) return `<div class="factory empty"></div>`;
-    return `<div class="factory ${canPick ? 'selectable' : ''}" data-fi="${fi}">
-      ${tiles.map(c => `<div class="tile tile-${c}" style="pointer-events:none">${COLOR_SYMBOLS[c]}</div>`).join('')}
+  const gs=gameState, canPick=isMyTurn()&&gs.phase==='factory'&&!selectedSource;
+  document.getElementById('factories-grid').innerHTML=gs.factories.map((tiles,fi)=>{
+    if(!tiles.length) return`<div class="factory empty"></div>`;
+    return`<div class="factory ${canPick?'selectable':''}" data-fi="${fi}">
+      ${tiles.map(c=>`<div class="tile tile-${c}" style="pointer-events:none">${COLOR_SYMBOLS[c]}</div>`).join('')}
     </div>`;
   }).join('');
-  if (canPick) {
-    document.querySelectorAll('#factories-grid .factory.selectable').forEach(el => {
-      el.addEventListener('click', () => pickFromFactory(parseInt(el.dataset.fi)));
+  if(canPick){
+    document.querySelectorAll('#factories-grid .factory.selectable').forEach(el=>{
+      el.addEventListener('click',()=>pickFromFactory(parseInt(el.dataset.fi)));
     });
   }
 }
 
 function renderCenter() {
-  const gs = gameState;
-  const canPick = isMyTurn() && gs.phase === 'factory' && !selectedSource;
-  const groups = {};
-  gs.center.forEach(c => { groups[c] = (groups[c]||0)+1; });
-  let html = '';
-  if (gs.centerHasStart) html += `<div class="tile tile-start" style="pointer-events:none">①</div>`;
-  Object.entries(groups).forEach(([color, count]) => {
-    html += `<div class="center-tile-group ${canPick ? 'selectable' : ''}" data-color="${color}">
-      <div class="tile tile-${color}" style="pointer-events:none">${COLOR_SYMBOLS[color]}</div>
-      ${count > 1 ? `<div class="count-badge" style="pointer-events:none">×${count}</div>` : ''}
+  const gs=gameState, canPick=isMyTurn()&&gs.phase==='factory'&&!selectedSource;
+  const groups={};
+  gs.center.forEach(c=>{groups[c]=(groups[c]||0)+1;});
+  let html='';
+  if(gs.centerHasStart) html+=`<div class="tile tile-start" style="pointer-events:none">①</div>`;
+  Object.entries(groups).forEach(([c,cnt])=>{
+    html+=`<div class="center-tile-group ${canPick?'selectable':''}" data-color="${c}">
+      <div class="tile tile-${c}" style="pointer-events:none">${COLOR_SYMBOLS[c]}</div>
+      ${cnt>1?`<div class="count-badge" style="pointer-events:none">×${cnt}</div>`:''}
     </div>`;
   });
-  document.getElementById('center-pool').innerHTML = html || '<div class="center-empty">EMPTY</div>';
-  if (canPick) {
-    document.querySelectorAll('#center-pool .center-tile-group.selectable').forEach(el => {
-      el.addEventListener('click', () => pickFromCenter(el.dataset.color));
+  document.getElementById('center-pool').innerHTML=html||'<div class="center-empty">EMPTY</div>';
+  if(canPick){
+    document.querySelectorAll('#center-pool .center-tile-group.selectable').forEach(el=>{
+      el.addEventListener('click',()=>pickFromCenter(el.dataset.color));
     });
   }
 }
 
 function renderBoard(playerIdx) {
-  const gs   = gameState;
-  const board  = gs.boards[playerIdx];
-  const player = gs.players[playerIdx];
-  const isMe   = player.id === myId;
-  const inSel  = isMe && isMyTurn() && selectedSource !== null;
-
-  let html = `<div class="player-board-section">
+  const gs=gameState,board=gs.boards[playerIdx],player=gs.players[playerIdx];
+  const isMe=player.id===myId, inSel=isMe&&isMyTurn()&&selectedSource!==null;
+  let html=`<div class="player-board-section">
     <div class="board-header">
-      <span class="board-name">${isMe ? 'YOUR BOARD' : player.name.toUpperCase().split(' (')[0]}</span>
+      <span class="board-name">${isMe?'YOUR BOARD':player.name.toUpperCase().split(' (')[0]}</span>
       <span style="font-size:11px;color:var(--gold)">${board.score} pts</span>
     </div>`;
-  if (inSel && selectedRow === null)
-    html += `<div class="row-select-hint">↓ Tap a pattern row to place your tiles</div>`;
-  html += `<div class="board-grid"><div class="pattern-lines">`;
-
-  for (let row = 0; row < 5; row++) {
-    const maxLen = row + 1;
-    const line   = board.patternLines[row];
-    let canTarget = false;
-    if (inSel) {
-      const sc = selectedSource.color;
-      const existing  = line[0];
-      const onWall    = board.wall[row].some((v,ci) => v && WALL_PATTERN[row][ci] === sc);
-      canTarget = line.length < maxLen && (!existing || existing === sc) && !onWall;
+  if(inSel&&selectedRow===null) html+=`<div class="row-select-hint">↓ Tap a pattern row to place your tiles</div>`;
+  html+=`<div class="board-grid"><div class="pattern-lines">`;
+  for(let row=0;row<5;row++){
+    const maxLen=row+1,line=board.patternLines[row];
+    let canTarget=false;
+    if(inSel){
+      const sc=selectedSource.color,ex=line[0];
+      const onWall=board.wall[row].some((v,ci)=>v&&WALL_PATTERN[row][ci]===sc);
+      canTarget=line.length<maxLen&&(!ex||ex===sc)&&!onWall;
     }
-    html += `<div class="pattern-row ${inSel && canTarget ? 'targetable' : ''}" data-row="${row}">`;
-    for (let s = 0; s < maxLen; s++) {
-      const tileIdx = line.length - 1 - s;
-      const color   = tileIdx >= 0 ? line[tileIdx] : null;
-      html += `<div class="pattern-slot ${selectedRow===row ? 'target' : ''}">
-        ${color ? `<div class="tile tile-${color}" style="pointer-events:none">${COLOR_SYMBOLS[color]}</div>` : ''}
+    html+=`<div class="pattern-row ${inSel&&canTarget?'targetable':''}" data-row="${row}">`;
+    for(let s=0;s<maxLen;s++){
+      const ti=line.length-1-s,color=ti>=0?line[ti]:null;
+      html+=`<div class="pattern-slot ${selectedRow===row?'target':''}">
+        ${color?`<div class="tile tile-${color}" style="pointer-events:none">${COLOR_SYMBOLS[color]}</div>`:''}
       </div>`;
     }
-    html += `</div>`;
+    html+=`</div>`;
   }
-
-  html += `</div><div class="wall-grid">`;
-  for (let row = 0; row < 5; row++) {
-    html += `<div class="wall-row">`;
-    for (let col = 0; col < 5; col++) {
-      const exp    = WALL_PATTERN[row][col];
-      const filled = board.wall[row][col];
-      html += `<div class="wall-slot tile-${exp} ${filled ? 'filled' : ''}">${COLOR_SYMBOLS[exp]}</div>`;
+  html+=`</div><div class="wall-grid">`;
+  for(let row=0;row<5;row++){
+    html+=`<div class="wall-row">`;
+    for(let col=0;col<5;col++){
+      const exp=WALL_PATTERN[row][col],filled=board.wall[row][col];
+      html+=`<div class="wall-slot tile-${exp} ${filled?'filled':''}">${COLOR_SYMBOLS[exp]}</div>`;
     }
-    html += `</div>`;
+    html+=`</div>`;
   }
-  html += `</div></div><div class="floor-line">
-    <span style="font-size:10px;opacity:.4;letter-spacing:2px;margin-right:4px;flex-shrink:0">FLOOR</span>`;
-  for (let i = 0; i < 7; i++) {
-    const t = board.floor[i];
-    html += `<div class="floor-slot">
+  html+=`</div></div><div class="floor-line"><span style="font-size:10px;opacity:.4;letter-spacing:2px;margin-right:4px;flex-shrink:0">FLOOR</span>`;
+  for(let i=0;i<7;i++){
+    const t=board.floor[i];
+    html+=`<div class="floor-slot">
       <div class="floor-penalty">${FLOOR_PENALTIES[i]}</div>
-      <div class="floor-cell">${t ? `<div class="tile tile-${t}" style="width:22px;height:22px;font-size:10px">${t==='start'?'①':COLOR_SYMBOLS[t]}</div>` : ''}</div>
+      <div class="floor-cell">${t?`<div class="tile tile-${t}" style="width:22px;height:22px;font-size:10px">${t==='start'?'①':COLOR_SYMBOLS[t]}</div>`:''}</div>
     </div>`;
   }
-  html += `</div></div>`;
-  document.getElementById('board-view').innerHTML = html;
-
-  if (inSel) {
-    document.querySelectorAll('.pattern-row.targetable').forEach(el => {
-      el.addEventListener('click', () => selectRow(parseInt(el.dataset.row)));
+  html+=`</div></div>`;
+  document.getElementById('board-view').innerHTML=html;
+  if(inSel){
+    document.querySelectorAll('.pattern-row.targetable').forEach(el=>{
+      el.addEventListener('click',()=>selectRow(parseInt(el.dataset.row)));
     });
   }
 }
 
 function renderActionBar() {
-  const bar = document.getElementById('action-bar');
-  const btn = document.getElementById('confirm-btn');
-  const hint= document.getElementById('action-hint');
-  if (selectedSource && isMyTurn() && gameState?.phase === 'factory') {
-    bar.style.display = 'block';
-    const n = selectedSource.count, name = COLOR_NAMES[selectedSource.color];
-    if (selectedRow !== null) {
-      btn.disabled = false;
-      btn.textContent = `Place in Row ${selectedRow+1}`;
-      hint.textContent = `${n}× ${name} → Row ${selectedRow+1}`;
-    } else {
-      btn.disabled = true;
-      btn.textContent = 'Place';
-      hint.textContent = `${n}× ${name} — tap a row below`;
-    }
-  } else {
-    bar.style.display = 'none';
-  }
+  const bar=document.getElementById('action-bar'),btn=document.getElementById('confirm-btn'),hint=document.getElementById('action-hint');
+  if(selectedSource&&isMyTurn()&&gameState?.phase==='factory'){
+    bar.style.display='block';
+    const n=selectedSource.count,name=COLOR_NAMES[selectedSource.color];
+    if(selectedRow!==null){btn.disabled=false;btn.textContent=`Place in Row ${selectedRow+1}`;hint.textContent=`${n}× ${name} → Row ${selectedRow+1}`;}
+    else{btn.disabled=true;btn.textContent='Place';hint.textContent=`${n}× ${name} — tap a row below`;}
+  } else bar.style.display='none';
 }
 
-function switchTab(idx) { viewingPlayer = idx; renderGame(); }
+function switchTab(idx) { viewingPlayer=idx; renderGame(); }
 
-// ── Tile picking ──
+// ── Picking ────────────────────────────────────────────────
 function pickFromFactory(fi) {
-  if (!isMyTurn()) return;
-  const tiles  = gameState.factories[fi];
-  const colors = [...new Set(tiles)];
-  if (colors.length === 1) {
-    setSelection('factory', fi, colors[0], tiles.filter(t => t === colors[0]).length);
-  } else {
-    openColorModal(colors, tiles, c => setSelection('factory', fi, c, tiles.filter(t => t === c).length));
-  }
+  if(!isMyTurn()) return;
+  const tiles=gameState.factories[fi], colors=[...new Set(tiles)];
+  if(colors.length===1) setSelection('factory',fi,colors[0],tiles.filter(t=>t===colors[0]).length);
+  else openColorModal(colors,tiles,c=>setSelection('factory',fi,c,tiles.filter(t=>t===c).length));
 }
-
 function pickFromCenter(color) {
-  if (!isMyTurn()) return;
-  setSelection('center', null, color, gameState.center.filter(t => t === color).length);
+  if(!isMyTurn()) return;
+  setSelection('center',null,color,gameState.center.filter(t=>t===color).length);
+}
+function setSelection(source,factoryIdx,color,count) {
+  selectedSource={source,factoryIdx,color,count}; selectedRow=null;
+  viewingPlayer=myIndex(); renderGame();
+}
+function selectRow(row)   { selectedRow=row; renderGame(); }
+function cancelSelection(){ selectedSource=null; selectedRow=null; renderGame(); }
+function confirmPlacement(){
+  if(!selectedSource||selectedRow===null) return;
+  sendWS({type:'pick_tiles',source:selectedSource.source,factoryIdx:selectedSource.factoryIdx,color:selectedSource.color,targetRow:selectedRow});
+  selectedSource=null; selectedRow=null;
+}
+function sendToFloor(){
+  if(!selectedSource) return;
+  sendWS({type:'pick_tiles',source:selectedSource.source,factoryIdx:selectedSource.factoryIdx,color:selectedSource.color,targetRow:'floor'});
+  selectedSource=null; selectedRow=null;
 }
 
-function setSelection(source, factoryIdx, color, count) {
-  selectedSource = { source, factoryIdx, color, count };
-  selectedRow    = null;
-  viewingPlayer  = myIndex();
-  renderGame();
-}
-
-function selectRow(row) { selectedRow = row; renderGame(); }
-
-function cancelSelection() { selectedSource = null; selectedRow = null; renderGame(); }
-
-function confirmPlacement() {
-  if (!selectedSource || selectedRow === null) return;
-  sendWS({ type:'pick_tiles', source:selectedSource.source,
-    factoryIdx:selectedSource.factoryIdx, color:selectedSource.color, targetRow:selectedRow });
-  selectedSource = null; selectedRow = null;
-}
-
-function sendToFloor() {
-  if (!selectedSource) return;
-  sendWS({ type:'pick_tiles', source:selectedSource.source,
-    factoryIdx:selectedSource.factoryIdx, color:selectedSource.color, targetRow:'floor' });
-  selectedSource = null; selectedRow = null;
-}
-
-// ── Color modal ──
-let _colorCb = null, _colorChosen = false;
-
-function openColorModal(colors, tiles, cb) {
-  _colorCb = cb; _colorChosen = false;
-  document.getElementById('color-options').innerHTML = colors.map(c => `
+// ── Color modal ────────────────────────────────────────────
+let _colorCb=null, _colorChosen=false;
+function openColorModal(colors,tiles,cb) {
+  _colorCb=cb; _colorChosen=false;
+  document.getElementById('color-options').innerHTML=colors.map(c=>`
     <div class="color-option" data-color="${c}">
       <div class="tile tile-${c}">${COLOR_SYMBOLS[c]}</div>
       <div class="color-label">${tiles.filter(t=>t===c).length}× ${COLOR_NAMES[c]}</div>
-    </div>
-  `).join('');
-
-  document.querySelectorAll('.color-option').forEach(el => {
-    el.addEventListener('touchend', e => {
-      e.preventDefault(); e.stopPropagation();
-      if (_colorChosen) return;
-      _colorChosen = true;
-      const saved = _colorCb; closeColorModal(); if (saved) saved(el.dataset.color);
+    </div>`).join('');
+  document.querySelectorAll('.color-option').forEach(el=>{
+    el.addEventListener('touchend',e=>{
+      e.preventDefault();e.stopPropagation();
+      if(_colorChosen)return; _colorChosen=true;
+      const saved=_colorCb; closeColorModal(); if(saved)saved(el.dataset.color);
     });
-    el.addEventListener('click', e => {
+    el.addEventListener('click',e=>{
       e.stopPropagation();
-      if (_colorChosen) return;
-      _colorChosen = true;
-      const saved = _colorCb; closeColorModal(); if (saved) saved(el.dataset.color);
+      if(_colorChosen)return; _colorChosen=true;
+      const saved=_colorCb; closeColorModal(); if(saved)saved(el.dataset.color);
     });
   });
-
-  const modal = document.getElementById('color-modal');
+  const modal=document.getElementById('color-modal');
   modal.classList.add('open');
-  modal.ontouchend = e => { if (e.target===modal){ e.preventDefault(); closeColorModal(); } };
-  modal.onclick    = e => { if (e.target===modal) closeColorModal(); };
+  modal.ontouchend=e=>{if(e.target===modal){e.preventDefault();closeColorModal();}};
+  modal.onclick   =e=>{if(e.target===modal)closeColorModal();};
 }
-
-function closeColorModal() {
+function closeColorModal(){
   document.getElementById('color-modal').classList.remove('open');
-  _colorCb = null; _colorChosen = false;
+  _colorCb=null; _colorChosen=false;
 }
 
-// ── End modal ──
+// ── End modal ──────────────────────────────────────────────
 function showEndModal() {
-  const gs = gameState;
-  const sorted = gs.players.map((p,i) => ({...p, score:gs.boards[i].score}))
-    .sort((a,b) => b.score - a.score);
-  document.getElementById('end-leaderboard').innerHTML = `
+  const gs=gameState;
+  const sorted=gs.players.map((p,i)=>({...p,score:gs.boards[i].score})).sort((a,b)=>b.score-a.score);
+  document.getElementById('end-leaderboard').innerHTML=`
     <thead><tr><th>#</th><th>Player</th><th>Score</th></tr></thead>
-    <tbody>${sorted.map((p,rank) => `
-      <tr class="${rank===0 ? 'winner' : ''}">
-        <td>${rank===0 ? '🏆' : rank+1}</td>
+    <tbody>${sorted.map((p,rank)=>`
+      <tr class="${rank===0?'winner':''}">
+        <td>${rank===0?'🏆':rank+1}</td>
         <td><span class="color-dot" style="background:${p.color}"></span>${p.name}${p.id===myId?' (you)':''}</td>
         <td class="pts">${p.score}</td>
-      </tr>`).join('')}
-    </tbody>`;
+      </tr>`).join('')}</tbody>`;
   document.getElementById('end-modal').classList.add('open');
 }
 
-// ── Helpers ──
-function showError(msg) {
-  const el = document.getElementById('lobby-error');
-  el.textContent = msg; el.style.display = 'block';
-  document.getElementById('create-btn').disabled = false;
-  document.getElementById('join-btn').disabled   = false;
-}
-function hideError() { document.getElementById('lobby-error').style.display = 'none'; }
+// ── Helpers ────────────────────────────────────────────────
 let _toastTimer;
-function showToast(msg) {
-  const t = document.getElementById('toast');
-  t.textContent = msg; t.style.opacity = '1';
+function showToast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.style.opacity='1';
   clearTimeout(_toastTimer);
-  _toastTimer = setTimeout(() => { t.style.opacity = '0'; }, 2500);
+  _toastTimer=setTimeout(()=>{t.style.opacity='0';},2500);
 }
 
-document.getElementById('player-name').addEventListener('keydown', e => {
-  if (e.key === 'Enter') document.getElementById('room-code-input').value ? joinRoom() : createRoom();
-});
-document.getElementById('room-code-input').addEventListener('keydown', e => {
-  if (e.key === 'Enter') joinRoom();
-});
+// ── Keyboard ───────────────────────────────────────────────
+document.getElementById('login-password').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
+document.getElementById('login-email').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
+document.getElementById('reg-password').addEventListener('keydown',e=>{if(e.key==='Enter')doRegister();});
+document.getElementById('join-code').addEventListener('keydown',e=>{if(e.key==='Enter')joinRoom();});
 
-connect();
+// ── Boot ───────────────────────────────────────────────────
+checkSession();
 </script>
 </body>
 </html>
