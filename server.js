@@ -1,11 +1,5 @@
 /**
- * AZUL — Node.js WebSocket Game Server
- * 
- * Responsibilities:
- *  - Room creation & joining (4-letter codes)
- *  - Authoritative game state (all moves validated server-side)
- *  - Broadcasting state updates to all players in a room
- *  - Serving the static client from /public
+ * AZUL — Node.js WebSocket Game Server with AI Players
  */
 
 import express from 'express';
@@ -17,11 +11,8 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const PORT = process.env.PORT || 3000;
 
-// ── Constants ──────────────────────────────────────────────
 const COLORS = ['B', 'C', 'R', 'Y', 'K'];
 const COLOR_NAMES = { B: 'Blue', C: 'Cyan', R: 'Red', Y: 'Yellow', K: 'Black' };
-
-// Fixed wall color layout (coloured side)
 const WALL_PATTERN = [
   ['B', 'Y', 'R', 'K', 'C'],
   ['C', 'B', 'Y', 'R', 'K'],
@@ -29,88 +20,89 @@ const WALL_PATTERN = [
   ['R', 'K', 'C', 'B', 'Y'],
   ['Y', 'R', 'K', 'C', 'B'],
 ];
-
 const FLOOR_PENALTIES = [-1, -1, -2, -2, -2, -3, -3];
 const PLAYER_COLORS = ['#4eb8c8', '#c94040', '#d4a017', '#9b59b6'];
+const AI_DELAY_MS = { rookie: 1800, veteran: 1200, master: 800 };
+const AI_NAMES = {
+  rookie:  ['Azulito', 'Tilesworth', 'Rookstone'],
+  veteran: ['Groutmaster', 'Señor Azul', 'The Grouter'],
+  master:  ['Grand Tiler', 'El Maestro', 'The Oracle'],
+};
 
-// ── In-memory state ────────────────────────────────────────
-// rooms: Map<roomCode, RoomState>
-// clients: Map<ws, { roomCode, playerId }>
-const rooms = new Map();
-const clients = new Map();
+const rooms   = new Map(); // roomCode → RoomState
+const clients = new Map(); // ws → { roomCode, playerId }
 
-// ── HTTP + WS setup ────────────────────────────────────────
-const app = express();
+const app    = express();
 app.use(express.static(path.join(__dirname, 'public')));
-
-// Health check (useful for cloud deploys)
 app.get('/health', (_, res) => res.json({ ok: true, rooms: rooms.size }));
 
 const server = http.createServer(app);
-const wss = new WebSocketServer({ server });
+const wss    = new WebSocketServer({ server });
 
-wss.on('connection', (ws) => {
-  ws.on('message', (raw) => {
-    let msg;
-    try { msg = JSON.parse(raw); } catch { return; }
+wss.on('connection', ws => {
+  ws.on('message', raw => {
+    let msg; try { msg = JSON.parse(raw); } catch { return; }
     handleMessage(ws, msg);
   });
-
   ws.on('close', () => handleDisconnect(ws));
   ws.on('error', () => handleDisconnect(ws));
 });
 
-server.listen(PORT, () => {
-  console.log(`🎮 Azul server running → http://localhost:${PORT}`);
-});
+server.listen(PORT, () => console.log(`🎮 Azul server → http://localhost:${PORT}`));
 
-// ── Message router ──────────────────────────────────────────
+// ─── Message router ────────────────────────────────────────
 function handleMessage(ws, msg) {
   switch (msg.type) {
-    case 'create_room':  return onCreateRoom(ws, msg);
-    case 'join_room':    return onJoinRoom(ws, msg);
-    case 'start_game':   return onStartGame(ws, msg);
-    case 'pick_tiles':   return onPickTiles(ws, msg);
-    case 'place_floor':  return onPlaceFloor(ws, msg);
-    case 'leave_room':   return onLeaveRoom(ws, msg);
-    default:
-      send(ws, { type: 'error', message: `Unknown message type: ${msg.type}` });
+    case 'create_room': return onCreateRoom(ws, msg);
+    case 'join_room':   return onJoinRoom(ws, msg);
+    case 'start_game':  return onStartGame(ws, msg);
+    case 'pick_tiles':  return onPickTiles(ws, msg);
+    case 'leave_room':  return handleDisconnect(ws);
+    default: send(ws, { type: 'error', message: `Unknown message: ${msg.type}` });
   }
 }
 
-// ── Lobby handlers ──────────────────────────────────────────
-function onCreateRoom(ws, { playerName }) {
+// ─── Lobby ─────────────────────────────────────────────────
+function onCreateRoom(ws, { playerName, aiPlayers = [] }) {
   if (!playerName?.trim()) return send(ws, { type: 'error', message: 'Name required' });
 
-  const code = generateCode();
+  const code     = generateCode();
   const playerId = generateId();
-  const player = { id: playerId, name: playerName.trim(), color: PLAYER_COLORS[0] };
+  const human    = { id: playerId, name: playerName.trim(), color: PLAYER_COLORS[0], isAI: false };
 
-  rooms.set(code, {
-    code,
-    phase: 'lobby',
-    players: [player],
-    gameState: null,
-  });
+  // Build AI player objects from requested difficulties
+  const allPlayers = [human];
+  for (const difficulty of aiPlayers) {
+    if (!['rookie','veteran','master'].includes(difficulty)) continue;
+    if (allPlayers.length >= 4) break;
+    const names = AI_NAMES[difficulty];
+    const aiName = names[Math.floor(Math.random() * names.length)];
+    allPlayers.push({
+      id: `ai-${generateId()}`,
+      name: `${aiName} (${difficulty.charAt(0).toUpperCase() + difficulty.slice(1)})`,
+      color: PLAYER_COLORS[allPlayers.length],
+      isAI: true,
+      difficulty,
+    });
+  }
 
+  rooms.set(code, { code, phase: 'lobby', players: allPlayers, gameState: null });
   clients.set(ws, { roomCode: code, playerId });
-  send(ws, { type: 'room_created', roomCode: code, playerId, players: [player] });
-  console.log(`[${code}] Room created by ${player.name}`);
+  send(ws, { type: 'room_created', roomCode: code, playerId, players: allPlayers });
+  console.log(`[${code}] Created by ${human.name} with ${allPlayers.length - 1} AI`);
 }
 
 function onJoinRoom(ws, { playerName, roomCode }) {
   if (!playerName?.trim()) return send(ws, { type: 'error', message: 'Name required' });
   const code = roomCode?.toUpperCase();
   const room = rooms.get(code);
-
-  if (!room)              return send(ws, { type: 'error', message: 'Room not found. Check the code.' });
-  if (room.phase !== 'lobby') return send(ws, { type: 'error', message: 'Game already in progress.' });
+  if (!room)                   return send(ws, { type: 'error', message: 'Room not found. Check the code.' });
+  if (room.phase !== 'lobby')  return send(ws, { type: 'error', message: 'Game already in progress.' });
   if (room.players.length >= 4) return send(ws, { type: 'error', message: 'Room is full (max 4 players).' });
 
   const playerId = generateId();
-  const player = { id: playerId, name: playerName.trim(), color: PLAYER_COLORS[room.players.length] };
+  const player   = { id: playerId, name: playerName.trim(), color: PLAYER_COLORS[room.players.length], isAI: false };
   room.players.push(player);
-
   clients.set(ws, { roomCode: code, playerId });
   send(ws, { type: 'room_joined', roomCode: code, playerId, players: room.players });
   broadcast(code, { type: 'lobby_update', players: room.players });
@@ -122,190 +114,291 @@ function onStartGame(ws, _msg) {
   if (!meta) return;
   const room = rooms.get(meta.roomCode);
   if (!room) return;
-
-  // Only host (first player) can start
   if (room.players[0].id !== meta.playerId)
-    return send(ws, { type: 'error', message: 'Only the host can start the game.' });
-
+    return send(ws, { type: 'error', message: 'Only the host can start.' });
   if (room.players.length < 2)
     return send(ws, { type: 'error', message: 'Need at least 2 players.' });
 
-  room.phase = 'game';
+  room.phase     = 'game';
   room.gameState = initGameState(room.players);
   broadcast(meta.roomCode, { type: 'game_started', gameState: room.gameState });
-  console.log(`[${meta.roomCode}] Game started with ${room.players.length} players`);
+  console.log(`[${meta.roomCode}] Game started (${room.players.length} players)`);
+
+  // Kick off AI if it goes first
+  maybeScheduleAI(meta.roomCode);
 }
 
-// ── Game action handlers ────────────────────────────────────
-
-/**
- * pick_tiles: A player picks tiles from a factory or center.
- * Payload: { source: 'factory'|'center', factoryIdx?: number, color: string, targetRow: number | 'floor' }
- *   targetRow: 0-4 for pattern line rows, 'floor' to discard all to floor
- */
-function onPickTiles(ws, { source, factoryIdx, color, targetRow }) {
+// ─── Pick tiles (human) ────────────────────────────────────
+function onPickTiles(ws, payload) {
   const meta = clients.get(ws);
   if (!meta) return;
   const room = rooms.get(meta.roomCode);
   if (!room?.gameState) return;
   const gs = room.gameState;
 
-  // Turn validation
   if (gs.phase !== 'factory')
     return send(ws, { type: 'error', message: 'Not the factory offer phase.' });
   if (gs.players[gs.currentPlayer].id !== meta.playerId)
     return send(ws, { type: 'error', message: "It's not your turn." });
 
-  const myIdx = gs.players.findIndex(p => p.id === meta.playerId);
+  const err = applyPickTiles(gs, meta.playerId, payload);
+  if (err) return send(ws, { type: 'error', message: err });
+
+  broadcast(meta.roomCode, { type: 'state_update', gameState: gs });
+  maybeScheduleAI(meta.roomCode);
+}
+
+// ─── Core move application (used by both humans & AI) ──────
+function applyPickTiles(gs, playerId, { source, factoryIdx, color, targetRow }) {
+  const myIdx = gs.players.findIndex(p => p.id === playerId);
+  if (myIdx < 0) return 'Player not found.';
   const board = gs.boards[myIdx];
 
-  // Gather picked tiles
   let picked = [];
-  let getsStartMarker = false;
+  let getsStart = false;
 
   if (source === 'factory') {
-    if (factoryIdx == null || !gs.factories[factoryIdx])
-      return send(ws, { type: 'error', message: 'Invalid factory.' });
-    const factory = gs.factories[factoryIdx];
-    if (!factory.includes(color))
-      return send(ws, { type: 'error', message: `No ${COLOR_NAMES[color]} tiles in that factory.` });
-
-    picked = factory.filter(t => t === color);
-    const remaining = factory.filter(t => t !== color);
+    const f = gs.factories[factoryIdx];
+    if (!f?.length)           return 'Invalid factory.';
+    if (!f.includes(color))   return `No ${COLOR_NAMES[color]} tiles there.`;
+    picked = f.filter(t => t === color);
+    gs.center.push(...f.filter(t => t !== color));
     gs.factories[factoryIdx] = [];
-    gs.center.push(...remaining);
-
   } else if (source === 'center') {
-    if (!gs.center.includes(color))
-      return send(ws, { type: 'error', message: `No ${COLOR_NAMES[color]} tiles in the center.` });
-
+    if (!gs.center.includes(color)) return `No ${COLOR_NAMES[color]} in center.`;
     picked = gs.center.filter(t => t === color);
     gs.center = gs.center.filter(t => t !== color);
-
-    if (gs.centerHasStart) {
-      gs.centerHasStart = false;
-      getsStartMarker = true;
-      gs.nextStartPlayer = myIdx;
-    }
+    if (gs.centerHasStart) { gs.centerHasStart = false; getsStart = true; gs.nextStartPlayer = myIdx; }
   } else {
-    return send(ws, { type: 'error', message: 'Invalid source.' });
+    return 'Invalid source.';
   }
 
-  // Place into pattern line or floor
   if (targetRow === 'floor') {
     placeToFloor(gs, board, picked);
   } else {
     const row = parseInt(targetRow);
-    if (isNaN(row) || row < 0 || row > 4)
-      return send(ws, { type: 'error', message: 'Invalid row.' });
-
-    const maxLen = row + 1;
-    const line = board.patternLines[row];
-    const existingColor = line[0];
-
-    // Validate pattern line placement
-    if (existingColor && existingColor !== color)
-      return send(ws, { type: 'error', message: 'Row already contains a different color.' });
+    if (isNaN(row) || row < 0 || row > 4) return 'Invalid row.';
+    const maxLen  = row + 1;
+    const line    = board.patternLines[row];
+    const existing = line[0];
+    if (existing && existing !== color)
+      return 'Row already has a different color.';
     if (board.wall[row].some((v, ci) => v && WALL_PATTERN[row][ci] === color))
-      return send(ws, { type: 'error', message: 'That color is already on your wall in that row.' });
-    if (line.length >= maxLen)
-      return send(ws, { type: 'error', message: 'That row is full.' });
-
+      return 'That color is already on your wall in that row.';
+    if (line.length >= maxLen) return 'That row is full.';
     const space = maxLen - line.length;
-    const toPlace = picked.slice(0, space);
-    const excess = picked.slice(space);
-    board.patternLines[row].unshift(...toPlace);
-    placeToFloor(gs, board, excess);
+    board.patternLines[row].unshift(...picked.slice(0, space));
+    placeToFloor(gs, board, picked.slice(space));
   }
 
-  // If player got start marker, add to floor too
-  if (getsStartMarker) {
+  if (getsStart) {
     if (board.floor.length < 7) board.floor.push('start');
     else gs.lid.push('start');
   }
 
-  // Check if round is over
   const roundOver = gs.factories.every(f => f.length === 0)
-    && gs.center.length === 0
-    && !gs.centerHasStart;
+    && gs.center.length === 0 && !gs.centerHasStart;
 
-  if (roundOver) {
-    doWallTiling(gs);
-  } else {
-    gs.currentPlayer = (gs.currentPlayer + 1) % gs.players.length;
+  if (roundOver) doWallTiling(gs);
+  else gs.currentPlayer = (gs.currentPlayer + 1) % gs.players.length;
+
+  return null; // no error
+}
+
+// ─── AI scheduling ─────────────────────────────────────────
+function maybeScheduleAI(roomCode) {
+  const room = rooms.get(roomCode);
+  if (!room?.gameState) return;
+  const gs = room.gameState;
+  if (gs.phase !== 'factory') return;
+
+  const cp = gs.players[gs.currentPlayer];
+  if (!cp?.isAI) return;
+
+  const delay = AI_DELAY_MS[cp.difficulty] ?? 1200;
+  setTimeout(() => runAITurn(roomCode), delay);
+}
+
+function runAITurn(roomCode) {
+  const room = rooms.get(roomCode);
+  if (!room?.gameState) return;
+  const gs = room.gameState;
+  if (gs.phase !== 'factory') return;
+
+  const cp = gs.players[gs.currentPlayer];
+  if (!cp?.isAI) return;
+
+  const move = computeAIMove(gs, gs.currentPlayer, cp.difficulty);
+  if (!move) return;
+
+  const err = applyPickTiles(gs, cp.id, move);
+  if (err) { console.error(`[${roomCode}] AI error: ${err}`); return; }
+
+  console.log(`[${roomCode}] ${cp.name} played ${move.color} → row ${move.targetRow}`);
+  broadcast(roomCode, { type: 'state_update', gameState: gs });
+  maybeScheduleAI(roomCode);
+}
+
+// ─── AI brains ─────────────────────────────────────────────
+
+/**
+ * Returns all legal moves for a given board state as
+ * [{ source, factoryIdx, color, targetRow, score }]
+ */
+function getLegalMoves(gs, playerIdx) {
+  const board   = gs.boards[playerIdx];
+  const moves   = [];
+  const sources = [];
+
+  // Factory sources
+  gs.factories.forEach((tiles, fi) => {
+    if (!tiles.length) return;
+    const colors = [...new Set(tiles)];
+    colors.forEach(c => sources.push({ source: 'factory', factoryIdx: fi, color: c, count: tiles.filter(t => t === c).length }));
+  });
+
+  // Center sources
+  const centerColors = [...new Set(gs.center)];
+  centerColors.forEach(c => sources.push({ source: 'center', factoryIdx: null, color: c, count: gs.center.filter(t => t === c).length }));
+
+  for (const src of sources) {
+    let placed = false;
+    for (let row = 0; row < 5; row++) {
+      const maxLen   = row + 1;
+      const line     = board.patternLines[row];
+      const existing = line[0];
+      const onWall   = board.wall[row].some((v, ci) => v && WALL_PATTERN[row][ci] === src.color);
+      if (onWall)                                    continue;
+      if (line.length >= maxLen)                     continue;
+      if (existing && existing !== src.color)        continue;
+      moves.push({ ...src, targetRow: row });
+      placed = true;
+    }
+    // Always allow floor as fallback
+    moves.push({ ...src, targetRow: 'floor' });
   }
 
-  broadcast(meta.roomCode, { type: 'state_update', gameState: gs });
-  console.log(`[${meta.roomCode}] ${gs.players[myIdx].name} picked ${picked.length}× ${COLOR_NAMES[color]}`);
+  return moves;
 }
 
 /**
- * place_floor: A player explicitly dumps their picked tiles to floor.
- * This is a subset of pick_tiles with targetRow='floor' but kept as a 
- * separate safety valve.
+ * Score a potential move for the AI evaluation function.
+ * Higher = better.
  */
-function onPlaceFloor(ws, msg) {
-  onPickTiles(ws, { ...msg, targetRow: 'floor' });
+function scoreMoveForAI(gs, playerIdx, move, difficulty) {
+  const board   = gs.boards[playerIdx];
+  const { color, targetRow, count, source } = move;
+
+  // Floor moves are penalised (but sometimes unavoidable)
+  if (targetRow === 'floor') return -10 - count * 3;
+
+  const row    = parseInt(targetRow);
+  const maxLen = row + 1;
+  const line   = board.patternLines[row];
+  const space  = maxLen - line.length;
+  const placed = Math.min(count, space);
+  const wasted = count - placed; // tiles that go to floor
+
+  let score = 0;
+
+  // ── Rookie: just prefer rows where tiles fit ──────────────
+  score += placed;
+  score -= wasted * 2;
+
+  if (difficulty === 'rookie') return score + Math.random() * 3;
+
+  // ── Veteran: prefer rows close to completion ──────────────
+  const afterFill  = line.length + placed;
+  const completion = afterFill / maxLen; // 0–1
+  score += completion * 5;
+
+  // Prefer picking tiles we already have in this row
+  if (line.length > 0 && line[0] === color) score += 3;
+
+  // Simulate the wall placement score we'd get when complete
+  if (afterFill === maxLen) {
+    const col         = WALL_PATTERN[row].indexOf(color);
+    const simWall     = gs.boards[playerIdx].wall.map(r => [...r]);
+    simWall[row][col] = color;
+    const wallPts     = scoreWallPlacement(simWall, row, col);
+    score += wallPts * 2;
+  }
+
+  // Avoid getting the start marker from center (floor penalty)
+  if (source === 'center' && gs.centerHasStart) score -= 3;
+
+  if (difficulty === 'veteran') return score + Math.random() * 1.5;
+
+  // ── Master: additionally hunts bonuses & plans ahead ─────
+  const col = WALL_PATTERN[row].indexOf(color);
+
+  // How many of this color already on wall? (working towards +10 bonus)
+  let colorCount = 0;
+  gs.boards[playerIdx].wall.forEach(r => r.forEach(v => { if (v === color) colorCount++; }));
+  score += colorCount * 1.5; // closer to completing 5 of same color
+
+  // How many tiles in this column? (working towards +7 column bonus)
+  let colCount = 0;
+  gs.boards[playerIdx].wall.forEach(r => { if (r[col]) colCount++; });
+  score += colCount * 1.2;
+
+  // How many tiles in this row on the wall? (working towards +2 row bonus)
+  const wallRowFilled = gs.boards[playerIdx].wall[row].filter(v => v).length;
+  score += wallRowFilled * 1.0;
+
+  // Strongly prefer not wasting tiles
+  score -= wasted * 4;
+
+  // Slightly avoid center if start marker is there and floor is already busy
+  if (source === 'center' && gs.centerHasStart && board.floor.length >= 3) score -= 6;
+
+  return score + Math.random() * 0.5; // tiny noise to avoid predictability
 }
 
-function onLeaveRoom(ws, _msg) {
-  handleDisconnect(ws);
+function computeAIMove(gs, playerIdx, difficulty) {
+  const moves = getLegalMoves(gs, playerIdx);
+  if (!moves.length) return null;
+
+  const scored = moves.map(m => ({ move: m, score: scoreMoveForAI(gs, playerIdx, m, difficulty) }));
+  scored.sort((a, b) => b.score - a.score);
+  return scored[0].move;
 }
 
-// ── Disconnect ──────────────────────────────────────────────
+// ─── Disconnect ────────────────────────────────────────────
 function handleDisconnect(ws) {
   const meta = clients.get(ws);
   if (!meta) return;
   clients.delete(ws);
-
   const room = rooms.get(meta.roomCode);
   if (!room) return;
-
   room.players = room.players.filter(p => p.id !== meta.playerId);
-
-  if (room.players.length === 0) {
+  if (room.players.filter(p => !p.isAI).length === 0) {
     rooms.delete(meta.roomCode);
-    console.log(`[${meta.roomCode}] Room closed (empty)`);
+    console.log(`[${meta.roomCode}] Room closed`);
   } else {
-    broadcast(meta.roomCode, {
-      type: 'player_left',
-      players: room.players,
-      gameState: room.gameState,
-    });
-    console.log(`[${meta.roomCode}] A player disconnected (${room.players.length} remain)`);
+    broadcast(meta.roomCode, { type: 'player_left', players: room.players, gameState: room.gameState });
   }
 }
 
-// ── Game logic ──────────────────────────────────────────────
+// ─── Game logic ────────────────────────────────────────────
 function initGameState(players) {
   let bag = [];
   COLORS.forEach(c => { for (let i = 0; i < 20; i++) bag.push(c); });
   bag = shuffle(bag);
-
-  const n = players.length;
+  const n            = players.length;
   const factoryCount = n === 2 ? 5 : n === 3 ? 7 : 9;
-  const factories = [];
+  const factories    = [];
   for (let i = 0; i < factoryCount; i++) factories.push(bag.splice(0, 4));
-
   return {
-    round: 1,
-    phase: 'factory',
-    currentPlayer: 0,
-    players: players.map(p => ({ id: p.id, name: p.name, color: p.color })),
-    factories,
-    center: [],
-    centerHasStart: true,
+    round: 1, phase: 'factory', currentPlayer: 0,
+    players: players.map(p => ({ id: p.id, name: p.name, color: p.color, isAI: p.isAI, difficulty: p.difficulty ?? null })),
+    factories, center: [], centerHasStart: true,
     boards: players.map(() => ({
       patternLines: [[], [], [], [], []],
       wall: Array(5).fill(null).map(() => Array(5).fill(null)),
-      floor: [],
-      score: 0,
+      floor: [], score: 0,
     })),
-    bag,
-    lid: [],
-    startPlayer: 0,
-    nextStartPlayer: null,
-    log: [],
+    bag, lid: [], startPlayer: 0, nextStartPlayer: null, log: [],
   };
 }
 
@@ -318,57 +411,38 @@ function placeToFloor(gs, board, tiles) {
 
 function doWallTiling(gs) {
   let gameEnds = false;
-
   gs.players.forEach((_, pi) => {
     const board = gs.boards[pi];
-
-    // Move complete pattern lines to wall
     for (let row = 0; row < 5; row++) {
-      const line = board.patternLines[row];
+      const line   = board.patternLines[row];
       const maxLen = row + 1;
       if (line.length === maxLen) {
         const color = line[0];
-        const col = WALL_PATTERN[row].indexOf(color);
+        const col   = WALL_PATTERN[row].indexOf(color);
         board.wall[row][col] = color;
-
         const pts = scoreWallPlacement(board.wall, row, col);
         board.score = Math.max(0, board.score + pts);
-
-        // Put surplus back in lid
         for (let i = 0; i < maxLen - 1; i++) gs.lid.push(color);
         board.patternLines[row] = [];
-
         if (board.wall[row].every(v => v !== null)) gameEnds = true;
       }
     }
-
-    // Floor penalties
     board.floor.forEach((t, i) => {
       if (t !== 'start') gs.lid.push(t);
       board.score = Math.max(0, board.score + FLOOR_PENALTIES[i]);
     });
     board.floor = [];
   });
-
-  if (gameEnds) {
-    applyEndBonuses(gs);
-    gs.phase = 'end';
-  } else {
-    prepareNextRound(gs);
-  }
+  if (gameEnds) { applyEndBonuses(gs); gs.phase = 'end'; }
+  else prepareNextRound(gs);
 }
 
 function applyEndBonuses(gs) {
   gs.boards.forEach(board => {
-    // +2 per complete horizontal row
-    board.wall.forEach(row => {
-      if (row.every(v => v)) board.score += 2;
-    });
-    // +7 per complete vertical column
+    board.wall.forEach(row => { if (row.every(v => v)) board.score += 2; });
     for (let col = 0; col < 5; col++) {
       if (board.wall.every(row => row[col])) board.score += 7;
     }
-    // +10 per color with all 5 placed
     COLORS.forEach(c => {
       let cnt = 0;
       board.wall.forEach(row => row.forEach(v => { if (v === c) cnt++; }));
@@ -379,18 +453,13 @@ function applyEndBonuses(gs) {
 
 function prepareNextRound(gs) {
   gs.round++;
-  gs.phase = 'factory';
+  gs.phase          = 'factory';
   gs.centerHasStart = true;
-  gs.currentPlayer = gs.nextStartPlayer ?? (gs.startPlayer + 1) % gs.players.length;
-  gs.startPlayer = gs.currentPlayer;
+  gs.currentPlayer  = gs.nextStartPlayer ?? (gs.startPlayer + 1) % gs.players.length;
+  gs.startPlayer    = gs.currentPlayer;
   gs.nextStartPlayer = null;
-
-  // Refill bag from lid if needed
   const needed = gs.factories.length * 4;
-  if (gs.bag.length < needed) {
-    gs.bag.push(...shuffle(gs.lid));
-    gs.lid = [];
-  }
+  if (gs.bag.length < needed) { gs.bag.push(...shuffle(gs.lid)); gs.lid = []; }
   gs.factories = gs.factories.map(() => gs.bag.splice(0, 4));
 }
 
@@ -400,38 +469,28 @@ function scoreWallPlacement(wall, row, col) {
   for (let c = col + 1; c < 5 && wall[row][c]; c++) h++;
   for (let r = row - 1; r >= 0 && wall[r][col]; r--) v++;
   for (let r = row + 1; r < 5 && wall[r][col]; r++) v++;
-
   if (h === 1 && v === 1) return 1;
-  let pts = 0;
-  if (h > 1) pts += h;
-  if (v > 1) pts += v;
-  return pts;
+  return (h > 1 ? h : 0) + (v > 1 ? v : 0);
 }
 
-// ── Utilities ──────────────────────────────────────────────
 function send(ws, data) {
-  if (ws.readyState === WebSocket.OPEN)
-    ws.send(JSON.stringify(data));
+  if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(data));
 }
 
 function broadcast(roomCode, data) {
   const payload = JSON.stringify(data);
   clients.forEach((meta, ws) => {
-    if (meta.roomCode === roomCode && ws.readyState === WebSocket.OPEN)
-      ws.send(payload);
+    if (meta.roomCode === roomCode && ws.readyState === WebSocket.OPEN) ws.send(payload);
   });
 }
 
 function generateCode() {
   let code;
-  do { code = Math.random().toString(36).substr(2, 4).toUpperCase(); }
-  while (rooms.has(code));
+  do { code = Math.random().toString(36).substr(2, 4).toUpperCase(); } while (rooms.has(code));
   return code;
 }
 
-function generateId() {
-  return Math.random().toString(36).substr(2, 9);
-}
+function generateId() { return Math.random().toString(36).substr(2, 9); }
 
 function shuffle(arr) {
   const a = [...arr];
