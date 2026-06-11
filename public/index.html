@@ -376,6 +376,8 @@
     transition: border-color 0.2s, background 0.2s;
   }
 
+  .pattern-row.targetable { cursor: pointer; }
+  .pattern-row.targetable:active { opacity: 0.7; }
   .pattern-slot.target { border-color: var(--gold); background: rgba(201,162,39,0.1); animation: pulse 1s infinite alternate; }
 
   @keyframes pulse {
@@ -860,10 +862,17 @@ function renderFactories() {
   const canPick = isMyTurn() && gs.phase === 'factory' && !selectedSource;
   document.getElementById('factories-grid').innerHTML = gs.factories.map((tiles, fi) => {
     if (!tiles.length) return `<div class="factory empty"></div>`;
-    return `<div class="factory ${canPick ? 'selectable' : ''}" onclick="${canPick ? `pickFromFactory(${fi})` : ''}">
-      ${tiles.map(c => `<div class="tile tile-${c}">${COLOR_SYMBOLS[c]}</div>`).join('')}
+    return `<div class="factory ${canPick ? 'selectable' : ''}" data-fi="${fi}">
+      ${tiles.map(c => `<div class="tile tile-${c}" style="pointer-events:none">${COLOR_SYMBOLS[c]}</div>`).join('')}
     </div>`;
   }).join('');
+
+  // Attach click handlers properly (avoids inline onclick quoting issues)
+  if (canPick) {
+    document.querySelectorAll('#factories-grid .factory.selectable').forEach(el => {
+      el.addEventListener('click', () => pickFromFactory(parseInt(el.dataset.fi)));
+    });
+  }
 }
 
 function renderCenter() {
@@ -873,15 +882,22 @@ function renderCenter() {
   gs.center.forEach(c => { groups[c] = (groups[c] || 0) + 1; });
 
   let html = '';
-  if (gs.centerHasStart) html += `<div class="tile tile-start">①</div>`;
+  if (gs.centerHasStart) html += `<div class="tile tile-start" style="pointer-events:none">①</div>`;
   Object.entries(groups).forEach(([color, count]) => {
-    html += `<div class="center-tile-group ${canPick ? 'selectable' : ''}" onclick="${canPick ? `pickFromCenter('${color}')` : ''}">
-      <div class="tile tile-${color}">${COLOR_SYMBOLS[color]}</div>
-      ${count > 1 ? `<div class="count-badge">×${count}</div>` : ''}
+    html += `<div class="center-tile-group ${canPick ? 'selectable' : ''}" data-color="${color}">
+      <div class="tile tile-${color}" style="pointer-events:none">${COLOR_SYMBOLS[color]}</div>
+      ${count > 1 ? `<div class="count-badge" style="pointer-events:none">×${count}</div>` : ''}
     </div>`;
   });
 
   document.getElementById('center-pool').innerHTML = html || '<div class="center-empty">EMPTY</div>';
+
+  // Attach click handlers properly
+  if (canPick) {
+    document.querySelectorAll('#center-pool .center-tile-group.selectable').forEach(el => {
+      el.addEventListener('click', () => pickFromCenter(el.dataset.color));
+    });
+  }
 }
 
 function renderBoard(playerIdx) {
@@ -918,7 +934,7 @@ function renderBoard(playerIdx) {
       canTarget = line.length < maxLen && (!existing || existing === sc) && !alreadyOnWall;
     }
 
-    html += `<div class="pattern-row" onclick="${inSelection && canTarget ? `selectRow(${row})` : ''}">`;
+    html += `<div class="pattern-row ${inSelection && canTarget ? 'targetable' : ''}" data-row="${row}">`;
     for (let s = 0; s < maxLen; s++) {
       const tileIdx = line.length - 1 - s;
       const color = tileIdx >= 0 ? line[tileIdx] : null;
@@ -953,6 +969,11 @@ function renderBoard(playerIdx) {
   html += `</div></div>`;
 
   document.getElementById('board-view').innerHTML = html;
+
+  // Attach row click handlers
+  document.querySelectorAll('.pattern-row.targetable').forEach(el => {
+    el.addEventListener('click', () => selectRow(parseInt(el.dataset.row)));
+  });
 }
 
 function renderActionBar() {
