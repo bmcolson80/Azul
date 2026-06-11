@@ -715,8 +715,20 @@ function handleMessage(msg) {
       break;
 
     case 'game_started':
+      gameState = msg.gameState;
+      viewingPlayer = msg.gameState.players.findIndex(p => p.id === myId);
+      if (viewingPlayer < 0) viewingPlayer = 0;
+      document.getElementById('lobby').style.display = 'none';
+      document.getElementById('game').style.display = 'block';
+      renderGame();
+      break;
+
     case 'state_update':
       gameState = msg.gameState;
+      if (viewingPlayer < 0 || viewingPlayer >= msg.gameState.players.length) {
+        viewingPlayer = msg.gameState.players.findIndex(p => p.id === myId);
+        if (viewingPlayer < 0) viewingPlayer = 0;
+      }
       document.getElementById('lobby').style.display = 'none';
       document.getElementById('game').style.display = 'block';
       renderGame();

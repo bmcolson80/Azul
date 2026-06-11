@@ -1,75 +1,15 @@
-/**
- * AZUL — Comprehensive Game Rules Test Suite
- * Uses Node.js built-in test runner (no extra deps needed)
- * Run with: npm test
- */
-
 import { test, describe, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
-
-// ─────────────────────────────────────────────────────────────
-// Extract pure game logic from server.js so we can test it
-// without spinning up HTTP/WS. We duplicate just the functions
-// under test here — if server.js changes, update these too.
-// ─────────────────────────────────────────────────────────────
-
-const COLORS = ['B', 'C', 'R', 'Y', 'K'];
-
-const WALL_PATTERN = [
-  ['B', 'Y', 'R', 'K', 'C'],
-  ['C', 'B', 'Y', 'R', 'K'],
-  ['K', 'C', 'B', 'Y', 'R'],
-  ['R', 'K', 'C', 'B', 'Y'],
-  ['Y', 'R', 'K', 'C', 'B'],
-];
-
-const FLOOR_PENALTIES = [-1, -1, -2, -2, -2, -3, -3];
-
-function shuffle(arr) {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
-}
+import {
+  COLORS, WALL_PATTERN, FLOOR_PENALTIES,
+  shuffle, scoreWallPlacement, applyEndBonuses,
+  doWallTiling, initGameState,
+} from './game-logic.js';
 
 function makePlayers(n) {
   return Array.from({ length: n }, (_, i) => ({
-    id: `player-${i}`,
-    name: `Player ${i + 1}`,
-    color: '#fff',
+    id: 'player-' + i, name: 'Player ' + (i + 1), color: '#fff',
   }));
-}
-
-function initGameState(players) {
-  let bag = [];
-  COLORS.forEach(c => { for (let i = 0; i < 20; i++) bag.push(c); });
-  bag = shuffle(bag);
-  const n = players.length;
-  const factoryCount = n === 2 ? 5 : n === 3 ? 7 : 9;
-  const factories = [];
-  for (let i = 0; i < factoryCount; i++) factories.push(bag.splice(0, 4));
-  return {
-    round: 1,
-    phase: 'factory',
-    currentPlayer: 0,
-    players: players.map(p => ({ id: p.id, name: p.name, color: p.color })),
-    factories,
-    center: [],
-    centerHasStart: true,
-    boards: players.map(() => ({
-      patternLines: [[], [], [], [], []],
-      wall: Array(5).fill(null).map(() => Array(5).fill(null)),
-      floor: [],
-      score: 0,
-    })),
-    bag,
-    lid: [],
-    startPlayer: 0,
-    nextStartPlayer: null,
-    log: [],
-  };
 }
 
 function placeToFloor(gs, board, tiles) {
@@ -79,129 +19,37 @@ function placeToFloor(gs, board, tiles) {
   });
 }
 
-function scoreWallPlacement(wall, row, col) {
-  let h = 1, v = 1;
-  for (let c = col - 1; c >= 0 && wall[row][c]; c--) h++;
-  for (let c = col + 1; c < 5 && wall[row][c]; c++) h++;
-  for (let r = row - 1; r >= 0 && wall[r][col]; r--) v++;
-  for (let r = row + 1; r < 5 && wall[r][col]; r++) v++;
-  if (h === 1 && v === 1) return 1;
-  let pts = 0;
-  if (h > 1) pts += h;
-  if (v > 1) pts += v;
-  return pts;
-}
-
-function doWallTiling(gs) {
-  let gameEnds = false;
-  gs.players.forEach((_, pi) => {
-    const board = gs.boards[pi];
-    for (let row = 0; row < 5; row++) {
-      const line = board.patternLines[row];
-      const maxLen = row + 1;
-      if (line.length === maxLen) {
-        const color = line[0];
-        const col = WALL_PATTERN[row].indexOf(color);
-        board.wall[row][col] = color;
-        const pts = scoreWallPlacement(board.wall, row, col);
-        board.score = Math.max(0, board.score + pts);
-        for (let i = 0; i < maxLen - 1; i++) gs.lid.push(color);
-        board.patternLines[row] = [];
-        if (board.wall[row].every(v => v !== null)) gameEnds = true;
-      }
-    }
-    board.floor.forEach((t, i) => {
-      if (t !== 'start') gs.lid.push(t);
-      board.score = Math.max(0, board.score + FLOOR_PENALTIES[i]);
-    });
-    board.floor = [];
-  });
-  if (gameEnds) {
-    applyEndBonuses(gs);
-    gs.phase = 'end';
-  } else {
-    prepareNextRound(gs);
-  }
-}
-
-function applyEndBonuses(gs) {
-  gs.boards.forEach(board => {
-    board.wall.forEach(row => { if (row.every(v => v)) board.score += 2; });
-    for (let col = 0; col < 5; col++) {
-      if (board.wall.every(row => row[col])) board.score += 7;
-    }
-    COLORS.forEach(c => {
-      let cnt = 0;
-      board.wall.forEach(row => row.forEach(v => { if (v === c) cnt++; }));
-      if (cnt === 5) board.score += 10;
-    });
-  });
-}
-
-function prepareNextRound(gs) {
-  gs.round++;
-  gs.phase = 'factory';
-  gs.centerHasStart = true;
-  gs.currentPlayer = gs.nextStartPlayer ?? (gs.startPlayer + 1) % gs.players.length;
-  gs.startPlayer = gs.currentPlayer;
-  gs.nextStartPlayer = null;
-  const needed = gs.factories.length * 4;
-  if (gs.bag.length < needed) {
-    gs.bag.push(...shuffle(gs.lid));
-    gs.lid = [];
-  }
-  gs.factories = gs.factories.map(() => gs.bag.splice(0, 4));
-}
-
-// Helper: forcibly set a factory's tiles for deterministic tests
 function setFactory(gs, idx, tiles) {
-  // Return displaced tiles to bag so bag count stays roughly right
   gs.bag.push(...gs.factories[idx]);
   gs.factories[idx] = [...tiles];
 }
 
-// Helper: simulate picking tiles (mimics onPickTiles server logic)
 function pickTiles(gs, playerIdx, source, factoryIdx, color, targetRow) {
   const board = gs.boards[playerIdx];
-  let picked = [];
-  let getsStartMarker = false;
-
+  let picked = [], getsStartMarker = false;
   if (source === 'factory') {
     const factory = gs.factories[factoryIdx];
     picked = factory.filter(t => t === color);
-    const remaining = factory.filter(t => t !== color);
+    gs.center.push(...factory.filter(t => t !== color));
     gs.factories[factoryIdx] = [];
-    gs.center.push(...remaining);
   } else {
     picked = gs.center.filter(t => t === color);
     gs.center = gs.center.filter(t => t !== color);
-    if (gs.centerHasStart) {
-      gs.centerHasStart = false;
-      getsStartMarker = true;
-      gs.nextStartPlayer = playerIdx;
-    }
+    if (gs.centerHasStart) { gs.centerHasStart = false; getsStartMarker = true; gs.nextStartPlayer = playerIdx; }
   }
-
   if (targetRow === 'floor') {
     placeToFloor(gs, board, picked);
   } else {
     const maxLen = targetRow + 1;
     const space = maxLen - board.patternLines[targetRow].length;
-    const toPlace = picked.slice(0, space);
-    const excess = picked.slice(space);
-    board.patternLines[targetRow].unshift(...toPlace);
-    placeToFloor(gs, board, excess);
+    board.patternLines[targetRow].unshift(...picked.slice(0, space));
+    placeToFloor(gs, board, picked.slice(space));
   }
-
   if (getsStartMarker) {
     if (board.floor.length < 7) board.floor.push('start');
     else gs.lid.push('start');
   }
-
-  const roundOver = gs.factories.every(f => f.length === 0)
-    && gs.center.length === 0
-    && !gs.centerHasStart;
-
+  const roundOver = gs.factories.every(f => f.length === 0) && gs.center.length === 0 && !gs.centerHasStart;
   if (roundOver) doWallTiling(gs);
   else gs.currentPlayer = (gs.currentPlayer + 1) % gs.players.length;
 }
@@ -707,7 +555,7 @@ describe('Round Preparation', () => {
     const needed = gs.factories.length * 4;
     gs.bag = []; // empty bag
     gs.lid = Array(needed).fill('B'); // lid has enough
-    prepareNextRound(gs);
+    doWallTiling(gs);
     assert.equal(gs.bag.length >= 0, true); // should not crash
     gs.factories.forEach(f => assert.equal(f.length, 4));
   });
