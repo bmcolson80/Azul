@@ -618,7 +618,7 @@
 
 <!-- Color picker modal -->
 <div class="modal-overlay" id="color-modal">
-  <div class="modal">
+  <div class="modal" onclick="event.stopPropagation()">
     <h2>PICK A COLOR</h2>
     <div id="color-options" style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap"></div>
     <br>
@@ -1074,12 +1074,30 @@ let _colorCb = null;
 function openColorModal(colors, tiles, cb) {
   _colorCb = cb;
   document.getElementById('color-options').innerHTML = colors.map(c => `
-    <div onclick="chooseColor('${c}')" style="cursor:pointer;text-align:center;padding:12px">
-      <div class="tile tile-${c}" style="width:44px;height:44px;font-size:20px;margin:0 auto 6px">${COLOR_SYMBOLS[c]}</div>
-      <div style="font-size:11px;color:var(--cream-dark)">${tiles.filter(t=>t===c).length}× ${COLOR_NAMES[c]}</div>
+    <div class="color-option" data-color="${c}" style="cursor:pointer;text-align:center;padding:16px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.1)">
+      <div class="tile tile-${c}" style="width:48px;height:48px;font-size:22px;margin:0 auto 8px;pointer-events:none">${COLOR_SYMBOLS[c]}</div>
+      <div style="font-size:12px;color:var(--cream-dark);pointer-events:none">${tiles.filter(t=>t===c).length}× ${COLOR_NAMES[c]}</div>
     </div>
   `).join('');
-  document.getElementById('color-modal').classList.add('open');
+
+  // Attach listeners (avoids inline onclick issues on mobile)
+  document.querySelectorAll('.color-option').forEach(el => {
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      chooseColor(el.dataset.color);
+    });
+    el.addEventListener('touchend', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      chooseColor(el.dataset.color);
+    });
+  });
+
+  const modal = document.getElementById('color-modal');
+  modal.classList.add('open');
+
+  // Clicking the overlay background closes it, but NOT the modal content
+  modal.onclick = (e) => { if (e.target === modal) closeColorModal(); };
 }
 
 function chooseColor(c) {
