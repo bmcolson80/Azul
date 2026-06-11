@@ -9,7 +9,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DB_PATH   = path.join(__dirname, 'azul.db');
+const DB_PATH   = process.env.DB_PATH ?? path.join(__dirname, 'azul.db');
 
 let db = null;
 
@@ -54,6 +54,17 @@ export async function initDB() {
       player_id TEXT NOT NULL,
       seat      INTEGER NOT NULL,
       PRIMARY KEY (game_id, player_id)
+    )
+  `);
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS otp_requests (
+      id         TEXT PRIMARY KEY,
+      email      TEXT NOT NULL,
+      code       TEXT NOT NULL,
+      expires_at INTEGER NOT NULL,
+      used       INTEGER NOT NULL DEFAULT 0,
+      created    INTEGER DEFAULT (strftime('%s','now'))
     )
   `);
 
@@ -155,6 +166,37 @@ export function linkPlayerToGame(gameId, userId, playerId, seat) {
 export function markGameEnded(roomCode) {
   db.run("UPDATE games SET phase='ended', updated=? WHERE room_code=?",
     [Math.floor(Date.now()/1000), roomCode]);
+  save();
+}
+
+// ── OTP / Password reset ─────────────────────────────────
+export function createOTP({ id, email, code, expiresAt }) {
+  // Invalidate any existing unused OTPs for this email
+  db.run("UPDATE otp_requests SET used=1 WHERE email=? AND used=0", [email.toLowerCase().trim()]);
+  db.run(
+    'INSERT INTO otp_requests (id, email, code, expires_at) VALUES (?,?,?,?)',
+    [id, email.toLowerCase().trim(), code, expiresAt]
+  );
+  save();
+}
+
+export function getValidOTP(email, code) {
+  const now = Math.floor(Date.now() / 1000);
+  const res = db.exec(
+    'SELECT * FROM otp_requests WHERE email=? AND code=? AND used=0 AND expires_at > ? ORDER BY created DESC LIMIT 1',
+    [email.toLowerCase().trim(), code, now]
+  );
+  if (!res.length || !res[0].values.length) return null;
+  return rowToObj(res[0]);
+}
+
+export function consumeOTP(id) {
+  db.run("UPDATE otp_requests SET used=1 WHERE id=?", [id]);
+  save();
+}
+
+export function updateUserPassword(email, hashedPassword) {
+  db.run("UPDATE users SET password=? WHERE email=?", [hashedPassword, email.toLowerCase().trim()]);
   save();
 }
 

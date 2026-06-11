@@ -23,6 +23,7 @@ label{display:block;font-size:11px;letter-spacing:2px;color:var(--cream-dark);op
 input[type=text],input[type=email],input[type=password]{width:100%;background:var(--navy);border:1px solid rgba(255,255,255,.15);border-radius:var(--radius-sm);color:var(--cream);font-family:'Lato',sans-serif;font-size:16px;padding:12px 14px;outline:none;transition:border-color .2s}
 input:focus{border-color:var(--gold)}
 input.code-input{text-align:center;font-size:22px;letter-spacing:8px;font-weight:700}
+input#otp-code{letter-spacing:12px;font-size:28px}
 .btn{width:100%;padding:14px;border:none;border-radius:var(--radius-sm);font-family:'Cinzel',serif;font-size:13px;letter-spacing:2px;cursor:pointer;transition:all .2s;margin-bottom:10px}
 .btn-primary{background:linear-gradient(135deg,var(--gold),#a07a1a);color:var(--navy);font-weight:700;box-shadow:0 4px 16px rgba(201,162,39,.3)}
 .btn-primary:active{transform:scale(.97)}
@@ -193,6 +194,8 @@ input.code-input{text-align:center;font-size:22px;letter-spacing:8px;font-weight
       <button class="btn btn-primary" id="login-btn" onclick="doLogin()">Sign In</button>
       <div style="text-align:center;font-size:13px;color:rgba(255,255,255,.4)">
         No account? <button class="link-btn" onclick="showRegister()">Create one</button>
+        &nbsp;·&nbsp;
+        <button class="link-btn" onclick="showForgot()">Forgot password?</button>
       </div>
     </div>
 
@@ -207,6 +210,52 @@ input.code-input{text-align:center;font-size:22px;letter-spacing:8px;font-weight
       <div style="text-align:center;font-size:13px;color:rgba(255,255,255,.4)">
         Already have one? <button class="link-btn" onclick="showLogin()">Sign in</button>
       </div>
+    </div>
+
+    <!-- Forgot password: step 1 — enter email -->
+    <div class="card" id="auth-forgot" style="display:none">
+      <h2>RESET PASSWORD</h2>
+      <p style="font-size:13px;color:rgba(255,255,255,.4);text-align:center;margin-bottom:20px;letter-spacing:.5px">Enter your email and we'll send a 6-digit code.</p>
+      <div class="error-msg" id="forgot-error"></div>
+      <div class="field-group"><label>Email</label><input type="email" id="forgot-email" placeholder="you@example.com" autocomplete="email"></div>
+      <button class="btn btn-primary" id="forgot-btn" onclick="doForgotPassword()">Send Reset Code</button>
+      <div style="text-align:center;font-size:13px;color:rgba(255,255,255,.4)">
+        <button class="link-btn" onclick="showLogin()">Back to sign in</button>
+      </div>
+    </div>
+
+    <!-- Forgot password: step 2 — enter OTP -->
+    <div class="card" id="auth-otp" style="display:none">
+      <h2>ENTER CODE</h2>
+      <p style="font-size:13px;color:rgba(255,255,255,.4);text-align:center;margin-bottom:4px;letter-spacing:.5px">We sent a 6-digit code to</p>
+      <p id="otp-email-display" style="font-size:14px;color:var(--gold);text-align:center;margin-bottom:20px;font-weight:700"></p>
+      <div class="error-msg" id="otp-error"></div>
+      <div class="field-group">
+        <label>6-Digit Code</label>
+        <input type="text" id="otp-code" class="code-input" placeholder="000000" maxlength="6" inputmode="numeric" autocomplete="one-time-code">
+      </div>
+      <button class="btn btn-primary" id="otp-btn" onclick="doVerifyOTP()">Verify Code</button>
+      <div style="text-align:center;font-size:13px;color:rgba(255,255,255,.4);margin-top:4px">
+        Didn't get it? <button class="link-btn" onclick="doForgotPassword()">Resend</button>
+        &nbsp;·&nbsp;
+        <button class="link-btn" onclick="showLogin()">Cancel</button>
+      </div>
+    </div>
+
+    <!-- Forgot password: step 3 — new password -->
+    <div class="card" id="auth-newpass" style="display:none">
+      <h2>NEW PASSWORD</h2>
+      <p style="font-size:13px;color:rgba(255,255,255,.4);text-align:center;margin-bottom:20px;letter-spacing:.5px">Choose a new password for your account.</p>
+      <div class="error-msg" id="newpass-error"></div>
+      <div class="field-group">
+        <label>New Password</label>
+        <input type="password" id="new-password" placeholder="Min 6 characters" autocomplete="new-password">
+      </div>
+      <div class="field-group">
+        <label>Confirm Password</label>
+        <input type="password" id="confirm-password" placeholder="Repeat password" autocomplete="new-password">
+      </div>
+      <button class="btn btn-primary" id="newpass-btn" onclick="doResetPassword()">Set New Password</button>
     </div>
   </div>
 </div>
@@ -355,8 +404,8 @@ function showScreen(id) {
 }
 
 // ── Auth ──────────────────────────────────────────────────
-function showLogin()    { document.getElementById('auth-login').style.display='block'; document.getElementById('auth-register').style.display='none'; }
-function showRegister() { document.getElementById('auth-login').style.display='none'; document.getElementById('auth-register').style.display='block'; }
+function showLogin()    { hideAllAuthCards(); document.getElementById('auth-login').style.display='block'; }
+function showRegister() { hideAllAuthCards(); document.getElementById('auth-register').style.display='block'; }
 
 async function doLogin() {
   const email    = document.getElementById('login-email').value.trim();
@@ -842,6 +891,120 @@ document.getElementById('login-password').addEventListener('keydown',e=>{if(e.ke
 document.getElementById('login-email').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
 document.getElementById('reg-password').addEventListener('keydown',e=>{if(e.key==='Enter')doRegister();});
 document.getElementById('join-code').addEventListener('keydown',e=>{if(e.key==='Enter')joinRoom();});
+document.getElementById('otp-code').addEventListener('keydown',e=>{if(e.key==='Enter')doVerifyOTP();});
+document.getElementById('new-password').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('confirm-password').focus();});
+document.getElementById('confirm-password').addEventListener('keydown',e=>{if(e.key==='Enter')doResetPassword();});
+document.getElementById('forgot-email').addEventListener('keydown',e=>{if(e.key==='Enter')doForgotPassword();});
+
+// ── Password reset flow ───────────────────────────────────
+let _resetToken = null; // held between OTP verify and password set
+let _forgotEmail = '';
+
+function showForgot() {
+  hideAllAuthCards();
+  document.getElementById('auth-forgot').style.display = 'block';
+  document.getElementById('forgot-error').style.display = 'none';
+  document.getElementById('forgot-btn').disabled = false;
+}
+
+function hideAllAuthCards() {
+  ['auth-login','auth-register','auth-forgot','auth-otp','auth-newpass'].forEach(id => {
+    document.getElementById(id).style.display = 'none';
+  });
+}
+
+async function doForgotPassword() {
+  const email = document.getElementById('forgot-email').value.trim();
+  if (!email) return showResetError('forgot', 'Please enter your email.');
+  _forgotEmail = email;
+  document.getElementById('forgot-btn').disabled = true;
+  document.getElementById('forgot-error').style.display = 'none';
+
+  try {
+    const res = await fetch('/api/forgot-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    });
+    const data = await res.json();
+    if (!res.ok) { showResetError('forgot', data.error); document.getElementById('forgot-btn').disabled = false; return; }
+    // Move to OTP step regardless (don't reveal if email exists)
+    document.getElementById('otp-email-display').textContent = email;
+    document.getElementById('otp-code').value = '';
+    document.getElementById('otp-error').style.display = 'none';
+    document.getElementById('otp-btn').disabled = false;
+    hideAllAuthCards();
+    document.getElementById('auth-otp').style.display = 'block';
+    setTimeout(() => document.getElementById('otp-code').focus(), 100);
+  } catch { showResetError('forgot', 'Connection error'); document.getElementById('forgot-btn').disabled = false; }
+}
+
+async function doVerifyOTP() {
+  const code = document.getElementById('otp-code').value.trim();
+  if (code.length !== 6) return showResetError('otp', 'Enter the 6-digit code from your email.');
+  document.getElementById('otp-btn').disabled = true;
+  document.getElementById('otp-error').style.display = 'none';
+
+  try {
+    const res = await fetch('/api/verify-otp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: _forgotEmail, code }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      showResetError('otp', data.error);
+      document.getElementById('otp-btn').disabled = false;
+      // Clear the code field so they can try again
+      document.getElementById('otp-code').value = '';
+      document.getElementById('otp-code').focus();
+      return;
+    }
+    _resetToken = data.resetToken;
+    document.getElementById('new-password').value = '';
+    document.getElementById('confirm-password').value = '';
+    document.getElementById('newpass-error').style.display = 'none';
+    document.getElementById('newpass-btn').disabled = false;
+    hideAllAuthCards();
+    document.getElementById('auth-newpass').style.display = 'block';
+    setTimeout(() => document.getElementById('new-password').focus(), 100);
+  } catch { showResetError('otp', 'Connection error'); document.getElementById('otp-btn').disabled = false; }
+}
+
+async function doResetPassword() {
+  const newPass     = document.getElementById('new-password').value;
+  const confirmPass = document.getElementById('confirm-password').value;
+  if (newPass.length < 6)        return showResetError('newpass', 'Password must be at least 6 characters.');
+  if (newPass !== confirmPass)   return showResetError('newpass', 'Passwords do not match.');
+  if (!_resetToken)              return showResetError('newpass', 'Session expired. Please start over.');
+  document.getElementById('newpass-btn').disabled = true;
+  document.getElementById('newpass-error').style.display = 'none';
+
+  try {
+    const res = await fetch('/api/reset-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ resetToken: _resetToken, newPassword: newPass }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      showResetError('newpass', data.error);
+      document.getElementById('newpass-btn').disabled = false;
+      // Token expired — send back to start
+      if (data.error?.includes('expired')) { _resetToken = null; setTimeout(showForgot, 1500); }
+      return;
+    }
+    _resetToken = null;
+    currentUser = data.user;
+    onLoggedIn();
+    showToast('Password updated — welcome back!');
+  } catch { showResetError('newpass', 'Connection error'); document.getElementById('newpass-btn').disabled = false; }
+}
+
+function showResetError(step, msg) {
+  const el = document.getElementById(step + '-error');
+  if (el) { el.textContent = msg; el.style.display = 'block'; }
+}
 
 // ── Boot ───────────────────────────────────────────────────
 checkSession();

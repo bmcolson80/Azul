@@ -11,7 +11,13 @@ import bcrypt         from 'bcryptjs';
 import jwt            from 'jsonwebtoken';
 import { fileURLToPath } from 'url';
 import { initDB, save as saveDB, createUser, getUserByEmail, getUserById,
-         saveGame, getGameByCode, getGamesForUser, linkPlayerToGame, markGameEnded } from './db.js';
+         saveGame, getGameByCode, getGamesForUser, linkPlayerToGame, markGameEnded,
+         createOTP, getValidOTP, consumeOTP, updateUserPassword } from './db.js';
+import { Resend } from 'resend';
+
+const resend = process.env.RESEND_API_KEY
+  ? new Resend(process.env.RESEND_API_KEY)
+  : null;
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT      = process.env.PORT || 3000;
@@ -113,6 +119,96 @@ app.get('/api/my-games', requireAuth, (req, res) => {
     updatedAt:  g.updated,
   }))});
 });
+// ── Password reset routes ──────────────────────────────────
+
+app.post('/api/forgot-password', async (req, res) => {
+  const { email } = req.body;
+  if (!email?.trim()) return res.status(400).json({ error: 'Email required' });
+
+  const user = getUserByEmail(email);
+  // Always return success to avoid user enumeration
+  if (!user) return res.json({ ok: true });
+
+  const code      = String(Math.floor(100000 + Math.random() * 900000)); // 6-digit OTP
+  const expiresAt = Math.floor(Date.now() / 1000) + 15 * 60; // 15 minutes
+  const id        = generateId();
+  createOTP({ id, email: email.trim(), code, expiresAt });
+
+  if (resend) {
+    try {
+      await resend.emails.send({
+        from:    'Azul Game <noreply@' + (process.env.EMAIL_DOMAIN || 'azul.game') + '>',
+        to:      user.email,
+        subject: 'Your Azul password reset code',
+        html: `
+          <div style="font-family:sans-serif;max-width:400px;margin:0 auto;padding:32px;background:#1a1f3a;color:#f5ecd7;border-radius:12px">
+            <h1 style="font-family:serif;color:#c9a227;letter-spacing:4px;margin:0 0 8px">AZUL</h1>
+            <p style="color:rgba(245,236,215,0.6);font-size:13px;margin:0 0 32px">DIGITAL EDITION</p>
+            <p style="margin:0 0 16px">Your password reset code is:</p>
+            <div style="background:#252c50;border:2px dashed #c9a227;border-radius:8px;padding:20px;text-align:center;margin:0 0 24px">
+              <span style="font-family:monospace;font-size:36px;font-weight:700;letter-spacing:12px;color:#c9a227">${code}</span>
+            </div>
+            <p style="color:rgba(245,236,215,0.5);font-size:12px;margin:0">This code expires in 15 minutes. If you didn't request this, you can safely ignore it.</p>
+          </div>
+        `,
+      });
+    } catch (err) {
+      console.error('Email send failed:', err.message);
+      // Don't expose error to client
+    }
+  } else {
+    // Dev fallback — log to console
+    console.log(`[DEV] OTP for ${email}: ${code}`);
+  }
+
+  res.json({ ok: true });
+});
+
+app.post('/api/verify-otp', (req, res) => {
+  const { email, code } = req.body;
+  if (!email || !code) return res.status(400).json({ error: 'Email and code required' });
+
+  const otp = getValidOTP(email, code.trim());
+  if (!otp) return res.status(400).json({ error: 'Invalid or expired code. Please try again.' });
+
+  // Return a short-lived reset token (JWT, 10 min)
+  const resetToken = jwt.sign(
+    { email: email.toLowerCase().trim(), otpId: otp.id, purpose: 'password-reset' },
+    JWT_SECRET,
+    { expiresIn: '10m' }
+  );
+
+  res.json({ ok: true, resetToken });
+});
+
+app.post('/api/reset-password', async (req, res) => {
+  const { resetToken, newPassword } = req.body;
+  if (!resetToken || !newPassword) return res.status(400).json({ error: 'Token and new password required' });
+  if (newPassword.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters' });
+
+  let payload;
+  try {
+    payload = jwt.verify(resetToken, JWT_SECRET);
+  } catch {
+    return res.status(400).json({ error: 'Reset link has expired. Please request a new one.' });
+  }
+
+  if (payload.purpose !== 'password-reset')
+    return res.status(400).json({ error: 'Invalid token' });
+
+  // Consume the OTP so it can't be reused
+  consumeOTP(payload.otpId);
+
+  const hash = await bcrypt.hash(newPassword, 10);
+  updateUserPassword(payload.email, hash);
+
+  // Auto-sign them in
+  const user  = getUserByEmail(payload.email);
+  const token = jwt.sign({ id:user.id, email:user.email, name:user.name }, JWT_SECRET, { expiresIn:'30d' });
+  res.cookie('azul_token', token, { httpOnly:true, sameSite:'lax', maxAge:30*24*60*60*1000 });
+  res.json({ ok:true, user:{ id:user.id, email:user.email, name:user.name } });
+});
+
 
 // ── HTTP/WS server ─────────────────────────────────────────
 const server = http.createServer(app);
