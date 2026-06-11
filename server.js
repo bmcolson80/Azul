@@ -1,5 +1,5 @@
 /**
- * AZUL — Server with Auth, Persistence, and AI Players
+ * COLMEDORNO — Server with Auth, Persistence, and AI Players
  */
 
 import express        from 'express';
@@ -21,7 +21,7 @@ const resend = process.env.RESEND_API_KEY
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT      = process.env.PORT || 3000;
-const JWT_SECRET = process.env.JWT_SECRET || 'azul-secret-change-in-production';
+const JWT_SECRET = process.env.JWT_SECRET || 'colmedorno-secret-change-in-production';
 
 // ── Game constants ─────────────────────────────────────────
 const COLORS       = ['B','C','R','Y','K'];
@@ -34,8 +34,8 @@ const FLOOR_PENALTIES = [-1,-1,-2,-2,-2,-3,-3];
 const PLAYER_COLORS   = ['#4eb8c8','#c94040','#d4a017','#9b59b6'];
 const AI_DELAY_MS     = { rookie:1800, veteran:1200, master:800 };
 const AI_NAMES = {
-  rookie:  ['Azulito','Tilesworth','Rookstone'],
-  veteran: ['Groutmaster','Señor Azul','The Grouter'],
+  rookie:  ['Pebbles','Tilesworth','Rookstone'],
+  veteran: ['Groutmaster','The Grouter','Von Grout'],
   master:  ['Grand Tiler','El Maestro','The Oracle'],
 };
 
@@ -54,7 +54,7 @@ app.get('/health', (_, res) => res.json({ ok:true, rooms:rooms.size }));
 
 // ── Auth middleware ────────────────────────────────────────
 function requireAuth(req, res, next) {
-  const token = req.cookies?.azul_token || req.headers.authorization?.split(' ')[1];
+  const token = req.cookies?.colmedorno_token || req.headers.authorization?.split(' ')[1];
   if (!token) return res.status(401).json({ error: 'Not authenticated' });
   try {
     req.user = jwt.verify(token, JWT_SECRET);
@@ -81,7 +81,7 @@ app.post('/api/register', async (req, res) => {
   createUser({ id, email, name, password: hash });
 
   const token = jwt.sign({ id, email, name }, JWT_SECRET, { expiresIn: '30d' });
-  res.cookie('azul_token', token, { httpOnly:true, sameSite:'lax', maxAge:30*24*60*60*1000 });
+  res.cookie('colmedorno_token', token, { httpOnly:true, sameSite:'lax', maxAge:30*24*60*60*1000 });
   res.json({ ok:true, user:{ id, email, name } });
 });
 
@@ -94,12 +94,12 @@ app.post('/api/login', async (req, res) => {
   if (!valid) return res.status(401).json({ error: 'Incorrect password' });
 
   const token = jwt.sign({ id:user.id, email:user.email, name:user.name }, JWT_SECRET, { expiresIn:'30d' });
-  res.cookie('azul_token', token, { httpOnly:true, sameSite:'lax', maxAge:30*24*60*60*1000 });
+  res.cookie('colmedorno_token', token, { httpOnly:true, sameSite:'lax', maxAge:30*24*60*60*1000 });
   res.json({ ok:true, user:{ id:user.id, email:user.email, name:user.name } });
 });
 
 app.post('/api/logout', (_, res) => {
-  res.clearCookie('azul_token');
+  res.clearCookie('colmedorno_token');
   res.json({ ok:true });
 });
 
@@ -137,12 +137,12 @@ app.post('/api/forgot-password', async (req, res) => {
   if (resend) {
     try {
       await resend.emails.send({
-        from:    'Azul Game <noreply@' + (process.env.EMAIL_DOMAIN || 'azul.game') + '>',
+        from:    'Colmedorno <noreply@' + (process.env.EMAIL_DOMAIN || 'azul.game') + '>',
         to:      user.email,
-        subject: 'Your Azul password reset code',
+        subject: 'Your Colmedorno password reset code',
         html: `
           <div style="font-family:sans-serif;max-width:400px;margin:0 auto;padding:32px;background:#1a1f3a;color:#f5ecd7;border-radius:12px">
-            <h1 style="font-family:serif;color:#c9a227;letter-spacing:4px;margin:0 0 8px">AZUL</h1>
+            <h1 style="font-family:serif;color:#c9a227;letter-spacing:4px;margin:0 0 8px">COLMEDORNO</h1>
             <p style="color:rgba(245,236,215,0.6);font-size:13px;margin:0 0 32px">DIGITAL EDITION</p>
             <p style="margin:0 0 16px">Your password reset code is:</p>
             <div style="background:#252c50;border:2px dashed #c9a227;border-radius:8px;padding:20px;text-align:center;margin:0 0 24px">
@@ -205,7 +205,7 @@ app.post('/api/reset-password', async (req, res) => {
   // Auto-sign them in
   const user  = getUserByEmail(payload.email);
   const token = jwt.sign({ id:user.id, email:user.email, name:user.name }, JWT_SECRET, { expiresIn:'30d' });
-  res.cookie('azul_token', token, { httpOnly:true, sameSite:'lax', maxAge:30*24*60*60*1000 });
+  res.cookie('colmedorno_token', token, { httpOnly:true, sameSite:'lax', maxAge:30*24*60*60*1000 });
   res.json({ ok:true, user:{ id:user.id, email:user.email, name:user.name } });
 });
 
@@ -218,7 +218,7 @@ wss.on('connection', (ws, req) => {
   // Try to identify user from cookie on initial connection
   let userId = null;
   const cookieHeader = req.headers.cookie || '';
-  const match = cookieHeader.match(/azul_token=([^;]+)/);
+  const match = cookieHeader.match(/colmedorno_token=([^;]+)/);
   if (match) {
     try { userId = jwt.verify(match[1], JWT_SECRET).id; } catch {}
   }
@@ -234,7 +234,7 @@ wss.on('connection', (ws, req) => {
 
 // Boot DB then start server
 initDB().then(() => {
-  server.listen(PORT, () => console.log(`🎮 Azul server → http://localhost:${PORT}`));
+  server.listen(PORT, () => console.log(`🎮 Colmedorno server → http://localhost:${PORT}`));
 });
 
 // ── WS message router ──────────────────────────────────────

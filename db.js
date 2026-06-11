@@ -1,6 +1,6 @@
 /**
  * db.js — Persistent storage using sql.js (pure JS SQLite)
- * Saves to disk as azul.db in the project root
+ * Saves to disk as colmedorno.db in the project root
  */
 
 import initSqlJs from 'sql.js';
@@ -9,7 +9,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DB_PATH   = process.env.DB_PATH ?? path.join(__dirname, 'azul.db');
+const DB_PATH   = process.env.DB_PATH ?? path.join(__dirname, 'colmedorno.db');
 
 let db = null;
 

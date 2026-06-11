@@ -1,5 +1,5 @@
 /**
- * AZUL — End-to-End WebSocket Test Suite
+ * COLMEDORNO — End-to-End WebSocket Test Suite
  * 
  * Spins up a real server, connects real WebSocket clients,
  * and plays through complete game scenarios.

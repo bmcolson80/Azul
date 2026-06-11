@@ -1,7 +1,7 @@
 {
-  "name": "azul-game",
+  "name": "colmedorno",
   "version": "1.0.0",
-  "description": "Azul multiplayer board game - Node.js WebSocket server",
+  "description": "Colmedorno - multiplayer tile game",
   "main": "server.js",
   "type": "module",
   "scripts": {
