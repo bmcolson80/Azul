@@ -565,6 +565,20 @@ input#otp-code{letter-spacing:12px;font-size:28px}
   </div>
 </div>
 
+<!-- Abandon confirmation modal -->
+<div class="modal-overlay" id="abandon-modal">
+  <div class="modal" onclick="event.stopPropagation()" style="max-width:300px">
+    <h2 style="color:#e08888">END GAME?</h2>
+    <div class="abandon-modal-body">
+      <p>This will permanently end the game for <strong>all players</strong>. This cannot be undone.</p>
+      <div class="abandon-modal-btns">
+        <button class="btn btn-secondary" style="flex:1" onclick="closeAbandonModal()">Cancel</button>
+        <button class="btn" style="flex:2;background:rgba(201,64,64,.15);border:1px solid rgba(201,64,64,.4);color:#e08888" onclick="confirmAbandon()">End Game</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="end-modal">
   <div class="modal" onclick="event.stopPropagation()">
     <h2>GAME OVER</h2>
