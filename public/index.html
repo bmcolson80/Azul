@@ -294,9 +294,10 @@ input#otp-code{letter-spacing:12px;font-size:28px}
     <!-- Join existing -->
     <div class="section-title">JOIN A GAME</div>
     <div class="card">
+      <div class="error-msg" id="join-error"></div>
       <div class="field-group">
         <label>Room Code</label>
-        <input type="text" id="join-code" class="code-input" placeholder="XXXX" maxlength="4" autocomplete="off" oninput="this.value=this.value.toUpperCase()">
+        <input type="text" id="join-code" class="code-input" placeholder="XXXX" maxlength="4" autocomplete="off" oninput="this.value=this.value.toUpperCase();this.closest('.card').querySelector('#join-error').style.display='none'">
       </div>
       <button class="btn btn-secondary" onclick="joinRoom()">Join Game</button>
     </div>
@@ -614,8 +615,7 @@ function handleWSMessage(msg) {
       showToast('A player left');
       break;
     case 'error':
-      showDashError(msg.message);
-      setButtonsEnabled(true);
+      showDashError(msg.message, true);
       break;
   }
 }
@@ -629,7 +629,13 @@ function createRoom() {
 
 function joinRoom() {
   const code = document.getElementById('join-code').value.trim().toUpperCase();
-  if (code.length !== 4) return showDashError('Enter a 4-letter room code.');
+  if (code.length !== 4) {
+    // Validation error for the join field only — never touches the create button
+    const el = document.getElementById('join-error');
+    if (el) { el.textContent = 'Enter a 4-letter room code.'; el.style.display = 'block'; }
+    return;
+  }
+  document.getElementById('join-error').style.display = 'none';
   document.getElementById('dash-error').style.display = 'none';
   sendWS({ type:'join_room', playerName: currentUser.name, roomCode: code });
 }
@@ -678,9 +684,10 @@ function setButtonsEnabled(on) {
   ['create-btn'].forEach(id => { const el=document.getElementById(id); if(el) el.disabled=!on; });
 }
 
-function showDashError(msg) {
+function showDashError(msg, reenableButtons = false) {
   const el = document.getElementById('dash-error');
-  if (el) { el.textContent=msg; el.style.display='block'; setButtonsEnabled(true); }
+  if (el) { el.textContent=msg; el.style.display='block'; }
+  if (reenableButtons) setButtonsEnabled(true);
 }
 
 // ── Game rendering ─────────────────────────────────────────
@@ -899,7 +906,9 @@ function showToast(msg){
 document.getElementById('login-password').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
 document.getElementById('login-email').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
 document.getElementById('reg-password').addEventListener('keydown',e=>{if(e.key==='Enter')doRegister();});
-document.getElementById('join-code').addEventListener('keydown',e=>{if(e.key==='Enter')joinRoom();});
+document.getElementById('join-code').addEventListener('keydown', e => {
+  if (e.key === 'Enter') joinRoom();
+});
 document.getElementById('otp-code').addEventListener('keydown',e=>{if(e.key==='Enter')doVerifyOTP();});
 document.getElementById('new-password').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('confirm-password').focus();});
 document.getElementById('confirm-password').addEventListener('keydown',e=>{if(e.key==='Enter')doResetPassword();});
