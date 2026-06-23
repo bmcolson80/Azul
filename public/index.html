@@ -14,7 +14,7 @@ body{background:var(--navy);color:var(--cream);font-family:'Lato',sans-serif;min
 .centered{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:24px;background:radial-gradient(ellipse at 50% 0%,#2e3760 0%,var(--navy) 70%)}
 .logo-tiles{display:grid;grid-template-columns:repeat(3,40px);gap:4px;margin:0 auto 16px;width:fit-content}
 .logo-tile{width:40px;height:40px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:18px;box-shadow:0 4px 12px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.2)}
-.logo-title{font-family:'Cinzel',serif;font-size:42px;font-weight:700;letter-spacing:8px;color:var(--gold);text-shadow:0 2px 20px rgba(201,162,39,.4)}
+.logo-title{font-family:'Cinzel',serif;font-size:clamp(22px,6.5vw,42px);font-weight:700;letter-spacing:clamp(3px,1.5vw,8px);color:var(--gold);text-shadow:0 2px 20px rgba(201,162,39,.4);white-space:nowrap;text-align:center}
 .logo-sub{font-size:11px;letter-spacing:4px;color:var(--cream-dark);opacity:.7;margin-top:4px;text-align:center}
 .card{background:var(--navy-light);border:1px solid rgba(201,162,39,.2);border-radius:var(--radius);padding:24px;width:100%;max-width:380px;box-shadow:0 8px 32px var(--shadow)}
 .card h2{font-family:'Cinzel',serif;font-size:14px;letter-spacing:3px;color:var(--gold);margin-bottom:20px;text-align:center}
@@ -37,10 +37,11 @@ input#otp-code{letter-spacing:12px;font-size:28px}
 .link-btn{background:none;border:none;color:var(--gold);cursor:pointer;font-size:13px;text-decoration:underline;padding:0;font-family:'Lato',sans-serif}
 
 /* ── DASHBOARD ── */
-.dashboard-header{background:var(--navy-light);border-bottom:1px solid rgba(201,162,39,.2);padding:14px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+.dashboard-header{background:var(--navy-light);border-bottom:1px solid rgba(201,162,39,.2);padding:12px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;gap:8px;min-width:0}
 .dashboard-header .dh-logo{font-family:'Cinzel',serif;font-size:18px;letter-spacing:4px;color:var(--gold)}
-.user-chip{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--cream-dark)}
+.user-chip{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--cream-dark);flex-shrink:0;min-width:0}
 .user-chip .avatar{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,var(--gold),#a07a1a);display:flex;align-items:center;justify-content:center;font-family:'Cinzel',serif;font-size:13px;font-weight:700;color:var(--navy);flex-shrink:0}
+.user-chip .user-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100px}
 .dashboard-body{padding:20px;max-width:480px;margin:0 auto}
 .section-title{font-family:'Cinzel',serif;font-size:12px;letter-spacing:3px;color:var(--gold);margin-bottom:14px}
 .game-cards{display:flex;flex-direction:column;gap:10px;margin-bottom:28px}
@@ -86,10 +87,10 @@ input#otp-code{letter-spacing:12px;font-size:28px}
 
 /* ── GAME ── */
 #game-screen{display:none}
-.game-header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:var(--navy-light);border-bottom:1px solid rgba(201,162,39,.2);position:sticky;top:0;z-index:100}
+.game-header{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:var(--navy-light);border-bottom:1px solid rgba(201,162,39,.2);position:sticky;top:0;z-index:100;gap:6px;overflow:hidden}
 .game-header .round-info{font-family:'Cinzel',serif;font-size:11px;letter-spacing:2px;color:var(--gold)}
-.current-player-badge{font-size:10px;background:rgba(201,162,39,.15);border:1px solid rgba(201,162,39,.3);border-radius:20px;padding:4px 12px;color:var(--gold);font-family:'Cinzel',serif;letter-spacing:1px}
-.phase-badge{font-size:10px;letter-spacing:2px;padding:3px 8px;border-radius:10px;text-transform:uppercase}
+.current-player-badge{font-size:10px;background:rgba(201,162,39,.15);border:1px solid rgba(201,162,39,.3);border-radius:20px;padding:4px 8px;color:var(--gold);font-family:'Cinzel',serif;letter-spacing:.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:110px;flex-shrink:1}
+.phase-badge{font-size:10px;letter-spacing:1px;padding:3px 7px;border-radius:10px;text-transform:uppercase;white-space:nowrap;flex-shrink:0}
 .phase-factory{background:rgba(46,123,181,.3);color:#7ec8f0}
 .phase-wall{background:rgba(201,162,39,.2);color:var(--gold)}
 .phase-end{background:rgba(224,85,85,.2);color:#e08888}
@@ -209,6 +210,7 @@ input#otp-code{letter-spacing:12px;font-size:28px}
 .abandon-modal-btns .btn{margin:0}
 .conn-off{background:rgba(224,85,85,.2);color:#e05555;border:1px solid rgba(224,85,85,.3)}
 @media(max-width:360px){.tile{width:24px;height:24px;font-size:11px}.pattern-slot,.wall-slot{width:22px;height:22px}.floor-cell{width:22px;height:22px}.factories-grid{gap:8px}}
+@media(max-width:400px){.user-chip .user-name{display:none}.dh-logo{font-size:15px;letter-spacing:2px}}
 </style>
 </head>
 <body>
@@ -308,7 +310,7 @@ input#otp-code{letter-spacing:12px;font-size:28px}
     <div class="user-chip">
       <button class="btn-rules" onclick="openRules()">📖 Rules</button>
       <div class="avatar" id="user-avatar">?</div>
-      <span id="user-name-display"></span>
+      <span id="user-name-display" class="user-name"></span>
       <button class="btn btn-secondary btn-sm" onclick="doLogout()">Sign Out</button>
     </div>
   </div>
