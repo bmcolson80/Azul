@@ -844,6 +844,15 @@ function handleWSMessage(msg) {
     case 'game_abandoned':
       showToast('The host ended the game.');
       setTimeout(() => {
+        // Same cleanup as backToDashboard
+        document.querySelector('.game-header')?.style.removeProperty('display');
+        const gob2 = document.getElementById('game-over-banner');
+        if (gob2) { gob2.style.display = 'none'; gob2.innerHTML = ''; }
+        document.getElementById('board-tabs')?.style.removeProperty('display');
+        document.getElementById('scores-bar')?.style.removeProperty('display');
+        document.getElementById('factories-grid')?.style.removeProperty('display');
+        document.getElementById('center-pool')?.style.removeProperty('display');
+        document.querySelectorAll('.section-label').forEach(el => el.style.removeProperty('display'));
         selectedSource = null; selectedRow = null; gameState = null;
         setButtonsEnabled(true);
         loadMyGames();
@@ -890,11 +899,18 @@ function startGame()    { sendWS({ type:'start_game' }); }
 
 function backToDashboard() {
   document.getElementById('end-modal').classList.remove('open');
-  // Restore game header in case we were in board review mode
+  // Restore all game-screen elements that may have been hidden during board review
   const gh = document.querySelector('.game-header');
   if (gh) gh.style.display = '';
   const gob = document.getElementById('game-over-banner');
   if (gob) { gob.style.display = 'none'; gob.innerHTML = ''; }
+  // Restore elements hidden by renderFinalBoardsReview
+  document.getElementById('board-tabs')?.style.removeProperty('display');
+  document.getElementById('scores-bar')?.style.removeProperty('display');
+  document.getElementById('factories-grid')?.style.removeProperty('display');
+  document.getElementById('center-pool')?.style.removeProperty('display');
+  document.getElementById('ai-thinking-bar')?.style.removeProperty('display');
+  document.querySelectorAll('.section-label').forEach(el => el.style.removeProperty('display'));
   selectedSource = null; selectedRow = null; gameState = null;
   setButtonsEnabled(true);
   loadMyGames();
@@ -928,8 +944,9 @@ function updateWaitingList(players) {
   btn.textContent = iAmHost ? (n>=2?`Start (${n} players)`:'Need 2+ players') : 'Waiting for host…';
 
   // Show/hide End Game button for host in waiting room
-  const existingEndBtn = document.getElementById('waiting-end-btn');
-  if (iAmHost && !existingEndBtn) {
+  // Always remove first to avoid duplicates on re-render
+  document.getElementById('waiting-end-btn')?.remove();
+  if (iAmHost) {
     const endBtn = document.createElement('button');
     endBtn.id = 'waiting-end-btn';
     endBtn.className = 'btn btn-danger';
@@ -937,8 +954,6 @@ function updateWaitingList(players) {
     endBtn.textContent = '⚠ End Game';
     endBtn.onclick = openAbandonModal;
     btn.parentNode.insertBefore(endBtn, btn.nextSibling);
-  } else if (!iAmHost && existingEndBtn) {
-    existingEndBtn.remove();
   }
 }
 
@@ -1087,6 +1102,7 @@ function renderOpponentBoards() {
     .filter(({ i }) => i !== myIndex());
 
   if (!others.length) { container.innerHTML = ''; return; }
+  if (!gs || !gs.boards) { container.innerHTML = ''; return; }
 
   let html = '<div class="opponents-section"><div class="opponents-label">Opponents</div>';
 
@@ -1411,6 +1427,9 @@ document.getElementById('join-code').addEventListener('keydown', e => {
   if (e.key === 'Enter') joinRoom();
 });
 document.getElementById('otp-code').addEventListener('keydown',e=>{if(e.key==='Enter')doVerifyOTP();});
+document.getElementById('otp-code').addEventListener('input',e=>{
+  e.target.value = e.target.value.replace(/[^0-9]/g,'').slice(0,6);
+});
 document.getElementById('new-password').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('confirm-password').focus();});
 document.getElementById('confirm-password').addEventListener('keydown',e=>{if(e.key==='Enter')doResetPassword();});
 document.getElementById('forgot-email').addEventListener('keydown',e=>{if(e.key==='Enter')doForgotPassword();});

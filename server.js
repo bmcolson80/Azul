@@ -365,8 +365,8 @@ function onRejoinRoom(ws, { roomCode }, userId) {
   send(ws, { type:'room_rejoined', roomCode:code, playerId:player.id, players:room.players, gameState:room.gameState, roomPhase:room.phase });
   console.log(`[${code}] ${player.name} rejoined`);
 
-  // Kick AI if it's waiting
-  if (room.phase === 'game') maybeScheduleAI(code);
+  // Kick AI if it's waiting (only if game is still in factory phase)
+  if (room.phase === 'game' && room.gameState?.phase === 'factory') maybeScheduleAI(code);
 }
 
 function onStartGame(ws, userId) {
@@ -374,6 +374,8 @@ function onStartGame(ws, userId) {
   if (!meta) return;
   const room = rooms.get(meta.roomCode);
   if (!room) return;
+  if (room.phase !== 'lobby')
+    return send(ws, { type:'error', message:'Game already started.' });
   if (room.players[0].id !== meta.playerId)
     return send(ws, { type:'error', message:'Only the host can start.' });
   if (room.players.length < 2)
@@ -488,6 +490,7 @@ function applyPickTiles(gs, playerId, { source, factoryIdx, color, targetRow }) 
 function maybeScheduleAI(roomCode) {
   const room = rooms.get(roomCode);
   if (!room?.gameState) return;
+  if (room.phase !== 'game') return; // don't fire AI in lobby or ended games
   const gs = room.gameState;
   if (gs.phase !== 'factory') return;
   const cp = gs.players[gs.currentPlayer];
