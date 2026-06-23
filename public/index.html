@@ -765,7 +765,9 @@ function handleWSMessage(msg) {
       break;
     case 'room_rejoined':
       myId = msg.playerId; myRoomCode = msg.roomCode;
-      if (msg.gameState && msg.gameState.phase === 'game') {
+      // roomPhase = room-level phase ('lobby' or 'game')
+      // gameState.phase = round phase ('factory', 'wall-tiling', 'end')
+      if (msg.roomPhase === 'game' && msg.gameState) {
         gameState = msg.gameState;
         viewingPlayer = msg.gameState.players.findIndex(p => p.id === myId);
         if (viewingPlayer < 0) viewingPlayer = 0;

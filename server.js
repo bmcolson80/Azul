@@ -362,7 +362,7 @@ function onRejoinRoom(ws, { roomCode }, userId) {
   if (!player) return send(ws, { type:'error', message:'You are not in this game.' });
 
   clients.set(ws, { roomCode:code, playerId:player.id, userId });
-  send(ws, { type:'room_rejoined', roomCode:code, playerId:player.id, players:room.players, gameState:room.gameState });
+  send(ws, { type:'room_rejoined', roomCode:code, playerId:player.id, players:room.players, gameState:room.gameState, roomPhase:room.phase });
   console.log(`[${code}] ${player.name} rejoined`);
 
   // Kick AI if it's waiting
