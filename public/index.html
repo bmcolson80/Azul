@@ -128,7 +128,7 @@ input#otp-code{letter-spacing:12px;font-size:28px}
 .tab-btn{flex-shrink:0;padding:6px 14px;border-radius:20px;border:1px solid rgba(255,255,255,.1);background:transparent;color:rgba(255,255,255,.5);font-size:12px;cursor:pointer;transition:all .2s;font-family:'Lato',sans-serif}
 .tab-btn.active{background:rgba(201,162,39,.15);border-color:rgba(201,162,39,.4);color:var(--gold)}
 .color-dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:4px}
-.player-board-section{margin:0 16px 100px;background:var(--navy-light);border:1px solid rgba(255,255,255,.08);border-radius:var(--radius);overflow:hidden}
+.player-board-section{margin:0 16px 12px;background:var(--navy-light);border:1px solid rgba(255,255,255,.08);border-radius:var(--radius);overflow:hidden}
 .board-header{background:var(--navy-mid);padding:10px 14px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(255,255,255,.08)}
 .board-header .board-name{font-family:'Cinzel',serif;font-size:12px;letter-spacing:2px;color:var(--gold)}
 .board-grid{display:grid;grid-template-columns:auto 1fr}
@@ -209,6 +209,26 @@ input#otp-code{letter-spacing:12px;font-size:28px}
 .abandon-modal-btns{display:flex;gap:10px}
 .abandon-modal-btns .btn{margin:0}
 .conn-off{background:rgba(224,85,85,.2);color:#e05555;border:1px solid rgba(224,85,85,.3)}
+
+/* ── Opponent boards (compact, read-only) ── */
+.opponents-section{margin:0 16px 100px}
+.opponents-label{font-size:10px;letter-spacing:3px;color:rgba(255,255,255,.25);text-transform:uppercase;padding:20px 0 10px;border-top:1px solid rgba(255,255,255,.06);margin-top:4px}
+.opponent-board{background:var(--navy-light);border:1px solid rgba(255,255,255,.07);border-radius:var(--radius);overflow:hidden;margin-bottom:10px}
+.opponent-board-header{background:var(--navy-mid);padding:8px 12px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(255,255,255,.07)}
+.opponent-board-name{font-family:'Cinzel',serif;font-size:11px;letter-spacing:2px;color:rgba(255,255,255,.6)}
+.opponent-board-score{font-family:'Cinzel',serif;font-size:13px;color:var(--gold)}
+.opponent-turn-indicator{font-size:9px;background:rgba(201,162,39,.15);border:1px solid rgba(201,162,39,.3);border-radius:10px;padding:2px 7px;color:var(--gold);letter-spacing:1px}
+.opponent-grid{display:grid;grid-template-columns:auto 1fr;padding:8px 8px 8px 10px;gap:0}
+.opponent-pattern-lines{display:flex;flex-direction:column;gap:3px;padding-right:6px}
+.opponent-pattern-row{display:flex;justify-content:flex-end;gap:3px}
+.opp-slot{width:20px;height:20px;border-radius:3px;background:rgba(255,255,255,.04);border:1px dashed rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center;font-size:9px;flex-shrink:0}
+.opp-slot.filled{border-color:transparent}
+.opponent-wall-grid{display:flex;flex-direction:column;gap:3px}
+.opponent-wall-row{display:flex;gap:3px}
+.opp-wall-slot{width:20px;height:20px;border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:9px;opacity:.15}
+.opp-wall-slot.filled{opacity:1}
+.opponent-floor{display:flex;gap:3px;padding:4px 10px 8px;overflow-x:auto;align-items:center}
+.opp-floor-tile{width:20px;height:20px;border-radius:3px;background:rgba(224,85,85,.08);border:1px dashed rgba(224,85,85,.2);display:flex;align-items:center;justify-content:center;font-size:9px;flex-shrink:0}
 @media(max-width:360px){.tile{width:24px;height:24px;font-size:11px}.pattern-slot,.wall-slot{width:22px;height:22px}.floor-cell{width:22px;height:22px}.factories-grid{gap:8px}}
 @media(max-width:400px){.user-chip .user-name{display:none}.dh-logo{font-size:15px;letter-spacing:2px}}
 </style>
@@ -384,6 +404,7 @@ input#otp-code{letter-spacing:12px;font-size:28px}
   <div class="section-label">CENTER OF TABLE</div>
   <div class="center-pool" id="center-pool"></div>
   <div id="board-view"></div>
+  <div id="opponents-view"></div>
   <div class="action-bar" id="action-bar" style="display:none">
     <div class="action-hint" id="action-hint">Select a pattern row — or tap Floor to discard</div>
     <div class="action-btns">
@@ -927,7 +948,7 @@ function renderGame() {
     <button class="tab-btn ${i===viewingPlayer?'active':''}" onclick="switchTab(${i})">
       <span class="color-dot" style="background:${p.color}"></span>${i===myIndex()?'My Board':p.name.split(' (')[0]}
     </button>`).join('');
-  renderFactories(); renderCenter(); renderBoard(viewingPlayer); renderActionBar();
+  renderFactories(); renderCenter(); renderBoard(viewingPlayer); renderOpponentBoards(); renderActionBar();
   if(gs.phase==='end') showEndModal();
 }
 
@@ -1017,6 +1038,88 @@ function renderBoard(playerIdx) {
       el.addEventListener('click',()=>selectRow(parseInt(el.dataset.row)));
     });
   }
+}
+
+
+function renderOpponentBoards() {
+  const gs = gameState;
+  const container = document.getElementById('opponents-view');
+  if (!container) return;
+
+  // All players except the one currently shown in the primary board view
+  const others = gs.players
+    .map((p, i) => ({ p, i }))
+    .filter(({ i }) => i !== myIndex());
+
+  if (!others.length) { container.innerHTML = ''; return; }
+
+  let html = '<div class="opponents-section"><div class="opponents-label">Opponents</div>';
+
+  others.forEach(({ p, i }) => {
+    const board = gs.boards[i];
+    const isCurrentPlayer = i === gs.currentPlayer;
+    const diffTag = p.isAI ? `<span style="font-size:9px;opacity:.5;margin-left:4px">${p.difficulty ?? 'AI'}</span>` : '';
+
+    html += `<div class="opponent-board">
+      <div class="opponent-board-header">
+        <span class="opponent-board-name">
+          <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${p.color};margin-right:5px;vertical-align:middle"></span>
+          ${p.name.split(' (')[0].toUpperCase()}${diffTag}
+        </span>
+        <span style="display:flex;align-items:center;gap:6px">
+          ${isCurrentPlayer ? '<span class="opponent-turn-indicator">THEIR TURN</span>' : ''}
+          <span class="opponent-board-score">${board.score} pts</span>
+        </span>
+      </div>
+      <div class="opponent-grid">
+        <div class="opponent-pattern-lines">`;
+
+    // Pattern lines
+    for (let row = 0; row < 5; row++) {
+      const maxLen = row + 1;
+      const line = board.patternLines[row];
+      html += '<div class="opponent-pattern-row">';
+      for (let s = 0; s < maxLen; s++) {
+        const ti = line.length - 1 - s;
+        const color = ti >= 0 ? line[ti] : null;
+        html += `<div class="opp-slot ${color ? 'filled' : ''}">
+          ${color ? `<div class="tile tile-${color}" style="width:18px;height:18px;font-size:8px;pointer-events:none">${COLOR_SYMBOLS[color]}</div>` : ''}
+        </div>`;
+      }
+      html += '</div>';
+    }
+
+    html += `</div><div class="opponent-wall-grid">`;
+
+    // Wall
+    for (let row = 0; row < 5; row++) {
+      html += '<div class="opponent-wall-row">';
+      for (let col = 0; col < 5; col++) {
+        const exp = WALL_PATTERN[row][col];
+        const filled = board.wall[row][col];
+        html += `<div class="opp-wall-slot tile-${exp} ${filled ? 'filled' : ''}">${COLOR_SYMBOLS[exp]}</div>`;
+      }
+      html += '</div>';
+    }
+
+    html += `</div></div>`;
+
+    // Floor (only show if they have tiles on it)
+    if (board.floor.length > 0) {
+      html += `<div class="opponent-floor"><span style="font-size:9px;opacity:.3;letter-spacing:1px;margin-right:4px;flex-shrink:0">FLOOR</span>`;
+      board.floor.forEach(t => {
+        html += `<div class="opp-floor-tile">
+          <div class="tile tile-${t}" style="width:18px;height:18px;font-size:8px;pointer-events:none">${t === 'start' ? '①' : COLOR_SYMBOLS[t]}</div>
+        </div>`;
+      });
+      html += '</div>';
+    }
+
+    html += '</div>'; // close opponent-board
+  });
+
+  html += '</div>'; // close opponents-section
+  container.innerHTML = html;
 }
 
 function renderActionBar() {
