@@ -845,6 +845,7 @@ function handleWSMessage(msg) {
       showToast('The host ended the game.');
       setTimeout(() => {
         selectedSource = null; selectedRow = null; gameState = null;
+        setButtonsEnabled(true);
         loadMyGames();
         showScreen('dashboard');
       }, 1500);
@@ -895,6 +896,7 @@ function backToDashboard() {
   const gob = document.getElementById('game-over-banner');
   if (gob) { gob.style.display = 'none'; gob.innerHTML = ''; }
   selectedSource = null; selectedRow = null; gameState = null;
+  setButtonsEnabled(true);
   loadMyGames();
   showScreen('dashboard');
 }
@@ -1536,10 +1538,10 @@ function closeAbandonModal() {
 function confirmAbandon() {
   closeAbandonModal();
   sendWS({ type: 'abandon_game' });
-  // Host also navigates away
   showToast('Game ended.');
   setTimeout(() => {
     selectedSource = null; selectedRow = null; gameState = null;
+    setButtonsEnabled(true);
     loadMyGames();
     showScreen('dashboard');
   }, 1000);
