@@ -201,6 +201,12 @@ input#otp-code{letter-spacing:12px;font-size:28px}
 .penalty-chip{background:rgba(224,85,85,.12);border:1px solid rgba(224,85,85,.25);border-radius:6px;padding:4px 10px;font-size:12px;color:#e08888;font-family:'Cinzel',serif}
 .btn-rules{background:transparent;border:1px solid rgba(201,162,39,.3);color:rgba(201,162,39,.8);border-radius:6px;padding:5px 10px;font-size:11px;letter-spacing:1px;cursor:pointer;font-family:'Cinzel',serif;transition:all .2s;white-space:nowrap}
 .btn-rules:active{background:rgba(201,162,39,.1)}
+.btn-danger-sm{background:transparent;border:1px solid rgba(224,85,85,.3);color:#e08888;border-radius:6px;padding:5px 10px;font-size:11px;letter-spacing:1px;cursor:pointer;font-family:'Cinzel',serif;transition:all .2s;white-space:nowrap}
+.btn-danger-sm:active{background:rgba(224,85,85,.1)}
+.abandon-modal-body{text-align:center;padding:8px 0 4px}
+.abandon-modal-body p{font-size:13px;color:rgba(255,255,255,.65);line-height:1.6;margin-bottom:20px}
+.abandon-modal-btns{display:flex;gap:10px}
+.abandon-modal-btns .btn{margin:0}
 .conn-off{background:rgba(224,85,85,.2);color:#e05555;border:1px solid rgba(224,85,85,.3)}
 @media(max-width:360px){.tile{width:24px;height:24px;font-size:11px}.pattern-slot,.wall-slot{width:22px;height:22px}.floor-cell{width:22px;height:22px}.factories-grid{gap:8px}}
 </style>
@@ -363,6 +369,7 @@ input#otp-code{letter-spacing:12px;font-size:28px}
     <span class="current-player-badge" id="hdr-turn">–</span>
     <span class="phase-badge phase-factory" id="hdr-phase">Factory Offer</span>
     <button class="btn-rules" onclick="openRules()" style="margin-left:6px">📖</button>
+    <button class="btn-danger-sm" id="abandon-btn" onclick="openAbandonModal()" style="display:none;margin-left:4px">⚠ End</button>
   </div>
   <div class="scores-bar" id="scores-bar"></div>
   <div id="ai-thinking-bar" style="display:none" class="ai-thinking">
@@ -781,6 +788,15 @@ function handleWSMessage(msg) {
       gameState = msg.gameState;
       renderGame();
       break;
+    case 'game_abandoned':
+      showToast('The host ended the game.');
+      setTimeout(() => {
+        selectedSource = null; selectedRow = null; gameState = null;
+        loadMyGames();
+        showScreen('dashboard');
+      }, 1500);
+      break;
+
     case 'player_left':
       if (msg.gameState) { gameState = msg.gameState; renderGame(); }
       else updateWaitingList(msg.players);
@@ -850,6 +866,20 @@ function updateWaitingList(players) {
   const btn = document.getElementById('start-btn');
   btn.disabled = n<2||!iAmHost;
   btn.textContent = iAmHost ? (n>=2?`Start (${n} players)`:'Need 2+ players') : 'Waiting for host…';
+
+  // Show/hide End Game button for host in waiting room
+  const existingEndBtn = document.getElementById('waiting-end-btn');
+  if (iAmHost && !existingEndBtn) {
+    const endBtn = document.createElement('button');
+    endBtn.id = 'waiting-end-btn';
+    endBtn.className = 'btn btn-danger';
+    endBtn.style.cssText = 'background:rgba(201,64,64,.12);border:1px solid rgba(201,64,64,.3);color:#e08888;margin-top:4px';
+    endBtn.textContent = '⚠ End Game';
+    endBtn.onclick = openAbandonModal;
+    btn.parentNode.insertBefore(endBtn, btn.nextSibling);
+  } else if (!iAmHost && existingEndBtn) {
+    existingEndBtn.remove();
+  }
 }
 
 function setButtonsEnabled(on) {
@@ -869,6 +899,12 @@ function isMyTurn()  { return gameState?.players[gameState.currentPlayer]?.id===
 function renderGame() {
   const gs=gameState; if(!gs) return;
   const cp=gs.players[gs.currentPlayer];
+  // Show End Game button only for the host (first human player)
+  const abandonBtn = document.getElementById('abandon-btn');
+  if (abandonBtn) {
+    const amHost = gs.players.find(p => !p.isAI)?.id === myId;
+    abandonBtn.style.display = amHost ? 'inline-block' : 'none';
+  }
   document.getElementById('hdr-round').textContent=gs.round;
   document.getElementById('hdr-turn').textContent=cp?.id===myId?'Your Turn':`${cp?.name.split(' (')[0]}'s Turn`;
   const ph=document.getElementById('hdr-phase');
@@ -1196,6 +1232,32 @@ function showResetError(step, msg) {
   if (el) { el.textContent = msg; el.style.display = 'block'; }
 }
 
+
+// ── Abandon game ─────────────────────────────────────────────
+function openAbandonModal() {
+  document.getElementById('abandon-modal').classList.add('open');
+}
+
+function closeAbandonModal() {
+  document.getElementById('abandon-modal').classList.remove('open');
+}
+
+function confirmAbandon() {
+  closeAbandonModal();
+  sendWS({ type: 'abandon_game' });
+  // Host also navigates away
+  showToast('Game ended.');
+  setTimeout(() => {
+    selectedSource = null; selectedRow = null; gameState = null;
+    loadMyGames();
+    showScreen('dashboard');
+  }, 1000);
+}
+
+// Close on overlay tap
+document.getElementById('abandon-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeAbandonModal();
+});
 
 // ── Rules modal ────────────────────────────────────────────
 function openRules() {

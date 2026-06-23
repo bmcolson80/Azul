@@ -256,6 +256,7 @@ function handleMessage(ws, msg, userId) {
       case 'start_game':   return onStartGame(ws, userId);
       case 'pick_tiles':   return onPickTiles(ws, msg);
       case 'leave_room':   return handleDisconnect(ws);
+    case 'abandon_game': return onAbandonGame(ws);
       default: send(ws, { type:'error', message:`Unknown: ${msg.type}` });
     }
   } catch (err) {
@@ -384,6 +385,25 @@ function onStartGame(ws, userId) {
   broadcast(meta.roomCode, { type:'game_started', gameState:room.gameState });
   console.log(`[${meta.roomCode}] Game started`);
   maybeScheduleAI(meta.roomCode);
+}
+
+// ── Abandon game (host only) ──────────────────────────────
+function onAbandonGame(ws) {
+  const meta = clients.get(ws);
+  if (!meta) return;
+  const room = rooms.get(meta.roomCode);
+  if (!room) return;
+
+  // Only the first human player (host) can abandon
+  const host = room.players.find(p => !p.isAI);
+  if (!host || host.id !== meta.playerId)
+    return send(ws, { type:'error', message:'Only the host can end the game.' });
+
+  const code = meta.roomCode;
+  console.log('[' + code + '] Game abandoned by host ' + meta.playerId);
+  markGameEnded(code);
+  rooms.delete(code);
+  broadcast(code, { type:'game_abandoned', roomCode: code });
 }
 
 // ── Pick tiles ─────────────────────────────────────────────
