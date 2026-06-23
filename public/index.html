@@ -229,6 +229,18 @@ input#otp-code{letter-spacing:12px;font-size:28px}
 .opp-wall-slot.filled{opacity:1}
 .opponent-floor{display:flex;gap:3px;padding:4px 10px 8px;overflow-x:auto;align-items:center}
 .opp-floor-tile{width:20px;height:20px;border-radius:3px;background:rgba(224,85,85,.08);border:1px dashed rgba(224,85,85,.2);display:flex;align-items:center;justify-content:center;font-size:9px;flex-shrink:0}
+
+/* ── Game-over review banner ── */
+#game-over-banner{display:none;background:linear-gradient(135deg,rgba(26,31,58,.98),rgba(37,44,80,.98));border-bottom:2px solid var(--gold);padding:14px 16px;position:sticky;top:0;z-index:101}
+.gob-top{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.gob-title{font-family:'Cinzel',serif;font-size:13px;letter-spacing:3px;color:var(--gold)}
+.gob-scores{display:flex;gap:6px;overflow-x:auto;padding:10px 0 2px;scrollbar-width:none}
+.gob-scores::-webkit-scrollbar{display:none}
+.gob-chip{display:flex;align-items:center;gap:5px;background:var(--navy);border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:5px 10px;flex-shrink:0;white-space:nowrap}
+.gob-chip.gob-winner{border-color:rgba(201,162,39,.4);background:rgba(201,162,39,.08)}
+.gob-chip-name{font-size:11px;color:rgba(255,255,255,.55);max-width:70px;overflow:hidden;text-overflow:ellipsis}
+.gob-chip-pts{font-family:'Cinzel',serif;font-size:15px;color:var(--cream);margin-left:4px;font-weight:700}
+.gob-chip.gob-winner .gob-chip-pts{color:var(--gold)}
 @media(max-width:360px){.tile{width:24px;height:24px;font-size:11px}.pattern-slot,.wall-slot{width:22px;height:22px}.floor-cell{width:22px;height:22px}.factories-grid{gap:8px}}
 @media(max-width:400px){.user-chip .user-name{display:none}.dh-logo{font-size:15px;letter-spacing:2px}}
 </style>
@@ -393,6 +405,7 @@ input#otp-code{letter-spacing:12px;font-size:28px}
     <button class="btn-rules" onclick="openRules()" style="margin-left:6px">📖</button>
     <button class="btn-danger-sm" id="abandon-btn" onclick="openAbandonModal()" style="display:none;margin-left:4px">⚠ End</button>
   </div>
+  <div id="game-over-banner"></div>
   <div class="scores-bar" id="scores-bar"></div>
   <div id="ai-thinking-bar" style="display:none" class="ai-thinking">
     <span id="ai-thinking-name">AI</span> is thinking
@@ -558,6 +571,7 @@ input#otp-code{letter-spacing:12px;font-size:28px}
     <p style="text-align:center;font-size:12px;color:rgba(255,255,255,.4);letter-spacing:2px;margin-bottom:16px">FINAL SCORES</p>
     <table class="leaderboard" id="end-leaderboard"></table>
     <br>
+    <button class="btn btn-secondary" onclick="viewFinalBoards()" style="margin-bottom:8px">View Final Boards</button>
     <button class="btn btn-primary" onclick="backToDashboard()">Back to Dashboard</button>
   </div>
 </div>
@@ -861,6 +875,11 @@ function startGame()    { sendWS({ type:'start_game' }); }
 
 function backToDashboard() {
   document.getElementById('end-modal').classList.remove('open');
+  // Restore game header in case we were in board review mode
+  const gh = document.querySelector('.game-header');
+  if (gh) gh.style.display = '';
+  const gob = document.getElementById('game-over-banner');
+  if (gob) { gob.style.display = 'none'; gob.innerHTML = ''; }
   selectedSource = null; selectedRow = null; gameState = null;
   loadMyGames();
   showScreen('dashboard');
@@ -1195,17 +1214,168 @@ function closeColorModal(){
 
 // ── End modal ──────────────────────────────────────────────
 function showEndModal() {
-  const gs=gameState;
-  const sorted=gs.players.map((p,i)=>({...p,score:gs.boards[i].score})).sort((a,b)=>b.score-a.score);
-  document.getElementById('end-leaderboard').innerHTML=`
+  const gs = gameState;
+  const sorted = gs.players.map((p,i) => ({...p, score:gs.boards[i].score})).sort((a,b) => b.score - a.score);
+  document.getElementById('end-leaderboard').innerHTML = `
     <thead><tr><th>#</th><th>Player</th><th>Score</th></tr></thead>
-    <tbody>${sorted.map((p,rank)=>`
+    <tbody>${sorted.map((p,rank) => `
       <tr class="${rank===0?'winner':''}">
         <td>${rank===0?'🏆':rank+1}</td>
         <td><span class="color-dot" style="background:${p.color}"></span>${p.name}${p.id===myId?' (you)':''}</td>
         <td class="pts">${p.score}</td>
       </tr>`).join('')}</tbody>`;
   document.getElementById('end-modal').classList.add('open');
+}
+
+function viewFinalBoards() {
+  // Close the modal and show the game-over banner instead
+  document.getElementById('end-modal').classList.remove('open');
+
+  const gs = gameState;
+  if (!gs) return;
+
+  const sorted = gs.players
+    .map((p, i) => ({ ...p, score: gs.boards[i].score }))
+    .sort((a, b) => b.score - a.score);
+
+  const winner = sorted[0];
+  const chips = sorted.map((p, rank) => `
+    <div class="gob-chip ${rank===0?'gob-winner':''}">
+      <span class="color-dot" style="background:${p.color};flex-shrink:0"></span>
+      <span class="gob-chip-name">${p.name.split(' (')[0]}</span>
+      <span class="gob-chip-pts">${rank===0?'🏆 ':''}${p.score}</span>
+    </div>`).join('');
+
+  const banner = document.getElementById('game-over-banner');
+  banner.innerHTML = `
+    <div class="gob-top">
+      <span class="gob-title">GAME OVER</span>
+      <button class="btn btn-primary btn-sm" onclick="backToDashboard()">Done</button>
+    </div>
+    <div class="gob-scores">${chips}</div>
+    <div style="font-size:11px;color:rgba(255,255,255,.3);letter-spacing:1px;padding-top:2px">Scroll down to review the final boards</div>`;
+  banner.style.display = 'block';
+
+  // Hide the sticky game header so the banner takes its place
+  document.querySelector('.game-header').style.display = 'none';
+
+  // Render all boards in review mode — show every player's board stacked
+  renderFinalBoardsReview();
+
+  // Scroll to top so banner is visible
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function renderFinalBoardsReview() {
+  const gs = gameState;
+  if (!gs) return;
+
+  // Re-render the tab view to show the current player's board first
+  // then the opponents section handles the rest — already rendered via renderGame
+  // We just need to ensure all boards are visible
+  // Show every board as a non-interactive full board in board-view
+  const sorted = gs.players
+    .map((p, i) => ({ p, i }))
+    .sort((a, b) => {
+      // Put the local player first, then others in turn order
+      if (a.p.id === myId) return -1;
+      if (b.p.id === myId) return 1;
+      return a.i - b.i;
+    });
+
+  let html = '';
+  sorted.forEach(({ p, i }) => {
+    const board = gs.boards[i];
+    const isMe = p.id === myId;
+    const playerScore = board.score;
+
+    // Build end-game bonus breakdown
+    let rowBonus = 0, colBonus = 0, colorBonus = 0;
+    board.wall.forEach(row => { if (row.every(v => v)) rowBonus += 2; });
+    for (let col = 0; col < 5; col++) {
+      if (board.wall.every(row => row[col])) colBonus += 7;
+    }
+    ['B','C','R','Y','K'].forEach(c => {
+      let cnt = 0;
+      board.wall.forEach(row => row.forEach(v => { if (v === c) cnt++; }));
+      if (cnt === 5) colorBonus += 10;
+    });
+
+    html += `<div class="player-board-section" style="margin:0 16px 12px">
+      <div class="board-header">
+        <span class="board-name">
+          <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${p.color};margin-right:6px;vertical-align:middle"></span>
+          ${isMe ? 'YOUR BOARD' : p.name.toUpperCase().split(' (')[0]}
+        </span>
+        <span style="font-size:11px;color:var(--gold);font-family:'Cinzel',serif">${playerScore} pts</span>
+      </div>
+      <div class="board-grid"><div class="pattern-lines">`;
+
+    // Pattern lines (read-only)
+    for (let row = 0; row < 5; row++) {
+      const maxLen = row + 1;
+      const line = board.patternLines[row];
+      html += '<div class="pattern-row">';
+      for (let s = 0; s < maxLen; s++) {
+        const ti = line.length - 1 - s;
+        const color = ti >= 0 ? line[ti] : null;
+        html += `<div class="pattern-slot">
+          ${color ? `<div class="tile tile-${color}" style="pointer-events:none">${COLOR_SYMBOLS[color]}</div>` : ''}
+        </div>`;
+      }
+      html += '</div>';
+    }
+
+    html += '</div><div class="wall-grid">';
+
+    // Wall
+    for (let row = 0; row < 5; row++) {
+      html += '<div class="wall-row">';
+      for (let col = 0; col < 5; col++) {
+        const exp = WALL_PATTERN[row][col];
+        const filled = board.wall[row][col];
+        html += `<div class="wall-slot tile-${exp} ${filled ? 'filled' : ''}">${COLOR_SYMBOLS[exp]}</div>`;
+      }
+      html += '</div>';
+    }
+
+    html += '</div></div>';
+
+    // Floor line
+    html += '<div class="floor-line"><span style="font-size:10px;opacity:.4;letter-spacing:2px;margin-right:4px;flex-shrink:0">FLOOR</span>';
+    for (let i2 = 0; i2 < 7; i2++) {
+      const t = board.floor[i2];
+      html += `<div class="floor-slot">
+        <div class="floor-penalty">${[-1,-1,-2,-2,-2,-3,-3][i2]}</div>
+        <div class="floor-cell">${t ? `<div class="tile tile-${t}" style="width:22px;height:22px;font-size:10px">${t==='start'?'①':COLOR_SYMBOLS[t]}</div>` : ''}</div>
+      </div>`;
+    }
+    html += '</div>';
+
+    // Score breakdown (if any bonuses)
+    if (rowBonus + colBonus + colorBonus > 0) {
+      html += `<div style="padding:8px 12px;border-top:1px solid rgba(255,255,255,.06);font-size:11px;color:rgba(255,255,255,.4);display:flex;gap:12px;flex-wrap:wrap">
+        <span style="color:rgba(255,255,255,.3);letter-spacing:1px">BONUSES</span>
+        ${rowBonus  > 0 ? `<span>+${rowBonus} rows</span>` : ''}
+        ${colBonus  > 0 ? `<span>+${colBonus} columns</span>` : ''}
+        ${colorBonus> 0 ? `<span>+${colorBonus} colours</span>` : ''}
+      </div>`;
+    }
+
+    html += '</div>'; // close player-board-section
+  });
+
+  // Hide the tab bar (not needed in review mode) and the opponents section
+  document.getElementById('board-tabs').style.display = 'none';
+  document.getElementById('board-view').innerHTML = html;
+  document.getElementById('opponents-view').innerHTML = '';
+
+  // Hide factory/center sections — game is over, they're empty anyway
+  document.querySelectorAll('.section-label').forEach(el => el.style.display = 'none');
+  document.getElementById('factories-grid').style.display = 'none';
+  document.getElementById('center-pool').style.display = 'none';
+  document.getElementById('scores-bar').style.display = 'none';
+  document.getElementById('ai-thinking-bar').style.display = 'none';
 }
 
 // ── Helpers ────────────────────────────────────────────────
