@@ -167,6 +167,40 @@ input#otp-code{letter-spacing:12px;font-size:28px}
 .toast{position:fixed;top:70px;left:50%;transform:translateX(-50%);background:var(--navy-mid);border:1px solid rgba(201,162,39,.4);border-radius:20px;padding:8px 20px;font-size:13px;color:var(--gold);z-index:999;white-space:nowrap;box-shadow:0 4px 20px rgba(0,0,0,.5);transition:opacity .4s;pointer-events:none;font-family:'Cinzel',serif;letter-spacing:1px;opacity:0}
 .conn-badge{position:fixed;bottom:8px;right:8px;font-size:10px;padding:3px 8px;border-radius:10px;z-index:300;letter-spacing:1px}
 .conn-ok{background:rgba(78,200,100,.2);color:#4ec864;border:1px solid rgba(78,200,100,.3)}
+
+/* ── Rules modal ── */
+.rules-modal{max-width:480px;padding:0;overflow:hidden}
+.rules-header{background:var(--navy-mid);padding:20px 24px 16px;border-bottom:1px solid rgba(201,162,39,.2);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10}
+.rules-header h2{font-family:'Cinzel',serif;font-size:16px;letter-spacing:3px;color:var(--gold);margin:0}
+.rules-close{background:none;border:1px solid rgba(255,255,255,.15);color:rgba(255,255,255,.5);border-radius:6px;padding:4px 10px;cursor:pointer;font-size:14px;line-height:1;font-family:'Lato',sans-serif}
+.rules-close:active{background:rgba(255,255,255,.08)}
+.rules-tabs{display:flex;overflow-x:auto;border-bottom:1px solid rgba(255,255,255,.08);background:var(--navy-light);padding:0 16px;gap:0;flex-shrink:0}
+.rules-tab{padding:12px 14px;font-family:'Cinzel',serif;font-size:10px;letter-spacing:2px;color:rgba(255,255,255,.4);cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;transition:all .2s;background:none;border-top:none;border-left:none;border-right:none}
+.rules-tab.active{color:var(--gold);border-bottom-color:var(--gold)}
+.rules-body{padding:20px 24px 32px;overflow-y:auto;max-height:60vh}
+.rules-section{display:none}
+.rules-section.active{display:block}
+.rules-body h3{font-family:'Cinzel',serif;font-size:12px;letter-spacing:2px;color:var(--gold);margin:20px 0 10px;text-transform:uppercase}
+.rules-body h3:first-child{margin-top:0}
+.rules-body p{font-size:13px;line-height:1.7;color:rgba(255,255,255,.75);margin-bottom:12px}
+.rules-body ul{padding-left:18px;margin-bottom:12px}
+.rules-body li{font-size:13px;line-height:1.7;color:rgba(255,255,255,.7);margin-bottom:6px}
+.rules-body li::marker{color:var(--gold)}
+.rules-callout{background:rgba(201,162,39,.08);border-left:3px solid var(--gold);border-radius:0 6px 6px 0;padding:10px 14px;margin:12px 0;font-size:12px;color:var(--cream-dark);line-height:1.6}
+.rules-callout strong{color:var(--gold)}
+.tile-pill{display:inline-flex;align-items:center;gap:5px;padding:2px 8px 2px 4px;border-radius:20px;font-size:11px;font-weight:700;vertical-align:middle;letter-spacing:.5px}
+.tile-pill .dot{width:14px;height:14px;border-radius:3px;flex-shrink:0}
+.tp-B{background:rgba(46,123,181,.25);color:#7ec8f0}.tp-B .dot{background:linear-gradient(135deg,#2e7bb5,#1a5a8a)}
+.tp-C{background:rgba(78,184,200,.25);color:#a0dce8}.tp-C .dot{background:linear-gradient(135deg,#4eb8c8,#2d8a9a)}
+.tp-R{background:rgba(201,64,64,.25);color:#e08888}.tp-R .dot{background:linear-gradient(135deg,#c94040,#8a2020)}
+.tp-Y{background:rgba(212,160,23,.25);color:#e8c547}.tp-Y .dot{background:linear-gradient(135deg,#d4a017,#8a6810)}
+.tp-K{background:rgba(80,80,120,.3);color:#aaaacc}.tp-K .dot{background:linear-gradient(135deg,#2a2a3e,#1a1a28)}
+.score-example{display:flex;align-items:center;gap:10px;background:var(--navy-mid);border-radius:8px;padding:10px 14px;margin:8px 0;font-size:12px;color:rgba(255,255,255,.65)}
+.score-pts{font-family:'Cinzel',serif;font-size:20px;color:var(--gold);min-width:36px;text-align:right}
+.penalty-row{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}
+.penalty-chip{background:rgba(224,85,85,.12);border:1px solid rgba(224,85,85,.25);border-radius:6px;padding:4px 10px;font-size:12px;color:#e08888;font-family:'Cinzel',serif}
+.btn-rules{background:transparent;border:1px solid rgba(201,162,39,.3);color:rgba(201,162,39,.8);border-radius:6px;padding:5px 10px;font-size:11px;letter-spacing:1px;cursor:pointer;font-family:'Cinzel',serif;transition:all .2s;white-space:nowrap}
+.btn-rules:active{background:rgba(201,162,39,.1)}
 .conn-off{background:rgba(224,85,85,.2);color:#e05555;border:1px solid rgba(224,85,85,.3)}
 @media(max-width:360px){.tile{width:24px;height:24px;font-size:11px}.pattern-slot,.wall-slot{width:22px;height:22px}.floor-cell{width:22px;height:22px}.factories-grid{gap:8px}}
 </style>
@@ -266,6 +300,7 @@ input#otp-code{letter-spacing:12px;font-size:28px}
   <div class="dashboard-header">
     <div class="dh-logo">COLMEDORNO</div>
     <div class="user-chip">
+      <button class="btn-rules" onclick="openRules()">📖 Rules</button>
       <div class="avatar" id="user-avatar">?</div>
       <span id="user-name-display"></span>
       <button class="btn btn-secondary btn-sm" onclick="doLogout()">Sign Out</button>
@@ -327,6 +362,7 @@ input#otp-code{letter-spacing:12px;font-size:28px}
     <div class="round-info">Round <span id="hdr-round">1</span></div>
     <span class="current-player-badge" id="hdr-turn">–</span>
     <span class="phase-badge phase-factory" id="hdr-phase">Factory Offer</span>
+    <button class="btn-rules" onclick="openRules()" style="margin-left:6px">📖</button>
   </div>
   <div class="scores-bar" id="scores-bar"></div>
   <div id="ai-thinking-bar" style="display:none" class="ai-thinking">
@@ -350,6 +386,142 @@ input#otp-code{letter-spacing:12px;font-size:28px}
 </div>
 
 <!-- Modals -->
+<div class="modal-overlay" id="rules-modal">
+  <div class="modal rules-modal" onclick="event.stopPropagation()" style="max-height:90vh;display:flex;flex-direction:column">
+    <div class="rules-header">
+      <h2>HOW TO PLAY</h2>
+      <button class="rules-close" onclick="closeRules()">✕ Close</button>
+    </div>
+    <div class="rules-tabs">
+      <button class="rules-tab active" onclick="showRulesTab('overview')">Overview</button>
+      <button class="rules-tab" onclick="showRulesTab('setup')">Setup</button>
+      <button class="rules-tab" onclick="showRulesTab('picking')">Picking</button>
+      <button class="rules-tab" onclick="showRulesTab('placing')">Placing</button>
+      <button class="rules-tab" onclick="showRulesTab('scoring')">Scoring</button>
+      <button class="rules-tab" onclick="showRulesTab('endgame')">End Game</button>
+    </div>
+    <div class="rules-body">
+
+      <div class="rules-section active" id="rules-overview">
+        <h3>The Goal</h3>
+        <p>Be the player with the most points when the game ends. Score points by placing tiles on your personal <strong>wall</strong> in smart patterns.</p>
+        <p>The game ends after the round in which at least one player completes a full horizontal row of 5 tiles on their wall.</p>
+        <h3>The 5 Tile Colours</h3>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 16px">
+          <span class="tile-pill tp-B"><span class="dot"></span>Blue ✦</span>
+          <span class="tile-pill tp-C"><span class="dot"></span>Cyan ❋</span>
+          <span class="tile-pill tp-R"><span class="dot"></span>Red ✿</span>
+          <span class="tile-pill tp-Y"><span class="dot"></span>Yellow ❊</span>
+          <span class="tile-pill tp-K"><span class="dot"></span>Black ✺</span>
+        </div>
+        <p>There are 20 tiles of each colour — 100 tiles in total.</p>
+        <h3>Each Round Has 3 Phases</h3>
+        <ul>
+          <li><strong>Factory Offer</strong> — take turns picking tiles from factory displays or the centre pile</li>
+          <li><strong>Wall-Tiling</strong> — complete pattern lines move a tile to your wall and score points</li>
+          <li><strong>Next Round</strong> — factories are refilled and play begins again</li>
+        </ul>
+        <div class="rules-callout"><strong>New player?</strong> Read <strong>Picking</strong> and <strong>Scoring</strong> first — those two tabs cover everything you need to play your first game.</div>
+      </div>
+
+      <div class="rules-section" id="rules-setup">
+        <h3>Factory Displays</h3>
+        <p>Circular factory displays sit in a ring. Each is filled with 4 random tiles at the start of every round.</p>
+        <ul>
+          <li><strong>2 players</strong> — 5 factory displays</li>
+          <li><strong>3 players</strong> — 7 factory displays</li>
+          <li><strong>4 players</strong> — 9 factory displays</li>
+        </ul>
+        <h3>Your Player Board Has 3 Areas</h3>
+        <ul>
+          <li><strong>Pattern Lines</strong> — 5 rows on the left, 1 to 5 spaces long. Fill these during the factory offer phase.</li>
+          <li><strong>Wall</strong> — the 5×5 coloured grid on the right. Each space has a fixed colour. Points are scored when tiles land here.</li>
+          <li><strong>Floor Line</strong> — 7 penalty spaces at the bottom for tiles you can't or don't want to place.</li>
+        </ul>
+        <h3>Starting Player Marker ①</h3>
+        <p>The first player each round to pick from the centre takes the ① marker onto their floor line. They go first next round, but it costs 1 point.</p>
+      </div>
+
+      <div class="rules-section" id="rules-picking">
+        <h3>On Your Turn — Pick Tiles</h3>
+        <p>You must do exactly one of these:</p>
+        <ul>
+          <li><strong>Pick from a factory</strong> — take ALL tiles of one colour. The remaining tiles slide to the centre pile.</li>
+          <li><strong>Pick from the centre</strong> — take ALL tiles of one colour. If you're first to do this, also take the ① marker.</li>
+        </ul>
+        <div class="rules-callout"><strong>In the app:</strong> Tap a factory circle to select it. If it has multiple colours, a colour picker appears. Tap the centre area to pick from there.</div>
+        <h3>Then Place Your Tiles</h3>
+        <p>Put your tiles into one pattern line on your board:</p>
+        <ul>
+          <li>You can only place <strong>one colour per row</strong></li>
+          <li>You <strong>cannot</strong> add a colour to a row if that colour is already on your wall in that row</li>
+          <li>Tiles that don't fit go to your <strong>floor line</strong></li>
+          <li>You may send all tiles straight to the floor line if you prefer</li>
+        </ul>
+        <div class="rules-callout"><strong>In the app:</strong> After picking, tap a pattern row to place tiles there. Tap <strong>Floor</strong> to discard them all.</div>
+        <h3>Round Ends When…</h3>
+        <p>Every factory display AND the centre pile are empty. Wall-tiling then happens automatically for all players.</p>
+      </div>
+
+      <div class="rules-section" id="rules-placing">
+        <h3>Wall-Tiling (happens automatically)</h3>
+        <ul>
+          <li>A <strong>complete</strong> pattern line moves its rightmost tile to the matching colour space on the wall — then scores.</li>
+          <li>The other tiles in that completed line go back to the supply.</li>
+          <li><strong>Incomplete</strong> lines stay on your board — keep building them next round.</li>
+        </ul>
+        <h3>The Wall Pattern</h3>
+        <p>Each row has a fixed colour order. Each colour appears exactly once per row and once per column — you can never place the same colour twice in a row or column.</p>
+        <div style="font-size:12px;background:var(--navy-mid);border-radius:8px;padding:12px 14px;line-height:2.2">
+          <div>Row 1: <span class="tile-pill tp-B"><span class="dot"></span>B</span> <span class="tile-pill tp-Y"><span class="dot"></span>Y</span> <span class="tile-pill tp-R"><span class="dot"></span>R</span> <span class="tile-pill tp-K"><span class="dot"></span>K</span> <span class="tile-pill tp-C"><span class="dot"></span>C</span></div>
+          <div>Row 2: <span class="tile-pill tp-C"><span class="dot"></span>C</span> <span class="tile-pill tp-B"><span class="dot"></span>B</span> <span class="tile-pill tp-Y"><span class="dot"></span>Y</span> <span class="tile-pill tp-R"><span class="dot"></span>R</span> <span class="tile-pill tp-K"><span class="dot"></span>K</span></div>
+          <div>Row 3: <span class="tile-pill tp-K"><span class="dot"></span>K</span> <span class="tile-pill tp-C"><span class="dot"></span>C</span> <span class="tile-pill tp-B"><span class="dot"></span>B</span> <span class="tile-pill tp-Y"><span class="dot"></span>Y</span> <span class="tile-pill tp-R"><span class="dot"></span>R</span></div>
+          <div>Row 4: <span class="tile-pill tp-R"><span class="dot"></span>R</span> <span class="tile-pill tp-K"><span class="dot"></span>K</span> <span class="tile-pill tp-C"><span class="dot"></span>C</span> <span class="tile-pill tp-B"><span class="dot"></span>B</span> <span class="tile-pill tp-Y"><span class="dot"></span>Y</span></div>
+          <div>Row 5: <span class="tile-pill tp-Y"><span class="dot"></span>Y</span> <span class="tile-pill tp-R"><span class="dot"></span>R</span> <span class="tile-pill tp-K"><span class="dot"></span>K</span> <span class="tile-pill tp-C"><span class="dot"></span>C</span> <span class="tile-pill tp-B"><span class="dot"></span>B</span></div>
+        </div>
+        <h3>Floor Penalties</h3>
+        <p>At the end of wall-tiling you lose points for tiles in your floor line. Your score can never drop below 0.</p>
+        <div class="penalty-row">
+          <span class="penalty-chip">−1</span><span class="penalty-chip">−1</span><span class="penalty-chip">−2</span><span class="penalty-chip">−2</span><span class="penalty-chip">−2</span><span class="penalty-chip">−3</span><span class="penalty-chip">−3</span>
+        </div>
+      </div>
+
+      <div class="rules-section" id="rules-scoring">
+        <h3>Scoring a Tile Placement</h3>
+        <p>Every tile that moves to your wall scores immediately:</p>
+        <div class="score-example"><div style="flex:1">Tile with <strong>no neighbours</strong> at all</div><div class="score-pts">1</div></div>
+        <div class="score-example"><div style="flex:1">Count the horizontal chain of linked tiles <em>(including new tile)</em></div><div class="score-pts">+H</div></div>
+        <div class="score-example"><div style="flex:1">Count the vertical chain of linked tiles <em>(including new tile)</em></div><div class="score-pts">+V</div></div>
+        <p>If the new tile touches neighbours in both directions, you score both counts added together.</p>
+        <div class="rules-callout">
+          <strong>Example:</strong> Your new tile connects to 2 existing tiles in a row (3 total) and 1 existing tile in a column (2 total).<br>Score = <strong>3 + 2 = 5 points</strong>.
+        </div>
+        <h3>Strategy Tip</h3>
+        <p>Placing tiles near existing ones scores much more than isolated placements. Building clusters is the key to high scores.</p>
+      </div>
+
+      <div class="rules-section" id="rules-endgame">
+        <h3>Triggering the End</h3>
+        <p>When at least one player completes a full row of 5 tiles on their wall, the current round finishes normally, then the game ends.</p>
+        <h3>Bonus Points at Game End</h3>
+        <div class="score-example"><div style="flex:1">Each complete <strong>horizontal row</strong> of 5 tiles on your wall</div><div class="score-pts">+2</div></div>
+        <div class="score-example"><div style="flex:1">Each complete <strong>vertical column</strong> of 5 tiles on your wall</div><div class="score-pts">+7</div></div>
+        <div class="score-example"><div style="flex:1">All <strong>5 tiles of one colour</strong> placed on your wall</div><div class="score-pts">+10</div></div>
+        <div class="rules-callout"><strong>Tip:</strong> Completing a vertical column or a full colour set is hard but hugely rewarding — aim for these from early in the game.</div>
+        <h3>Winning</h3>
+        <p>Most points wins. Tiebreak: most complete horizontal rows. If still tied, the victory is shared.</p>
+        <h3>AI Difficulty Levels</h3>
+        <ul>
+          <li><strong>🟦 Rookie</strong> — picks mostly at random. Makes mistakes, wastes tiles to the floor.</li>
+          <li><strong>🟨 Veteran</strong> — prioritises completing rows, avoids penalties, simulates wall scores before deciding.</li>
+          <li><strong>🟥 Master</strong> — hunts column bonuses, colour-set bonuses, and adjacency scoring throughout. Tough opponent.</li>
+        </ul>
+      </div>
+
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="end-modal">
   <div class="modal" onclick="event.stopPropagation()">
     <h2>GAME OVER</h2>
@@ -1023,6 +1195,31 @@ function showResetError(step, msg) {
   const el = document.getElementById(step + '-error');
   if (el) { el.textContent = msg; el.style.display = 'block'; }
 }
+
+
+// ── Rules modal ────────────────────────────────────────────
+function openRules() {
+  document.getElementById('rules-modal').classList.add('open');
+}
+
+function closeRules() {
+  document.getElementById('rules-modal').classList.remove('open');
+}
+
+function showRulesTab(tab) {
+  document.querySelectorAll('.rules-tab').forEach((el, i) => {
+    const tabs = ['overview','setup','picking','placing','scoring','endgame'];
+    el.classList.toggle('active', tabs[i] === tab);
+  });
+  document.querySelectorAll('.rules-section').forEach(el => {
+    el.classList.toggle('active', el.id === 'rules-' + tab);
+  });
+}
+
+// Close rules modal on overlay tap
+document.getElementById('rules-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeRules();
+});
 
 // ── Boot ───────────────────────────────────────────────────
 checkSession();
