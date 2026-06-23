@@ -21,6 +21,14 @@ const resend = process.env.RESEND_API_KEY
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT      = process.env.PORT || 3000;
+
+// ── Global error handlers — keep process alive ─────────────
+process.on('uncaughtException', (err) => {
+  console.error('[UNCAUGHT EXCEPTION]', err.stack || err);
+});
+process.on('unhandledRejection', (reason) => {
+  console.error('[UNHANDLED REJECTION]', reason);
+});
 const JWT_SECRET = process.env.JWT_SECRET || 'colmedorno-secret-change-in-production';
 
 // ── Game constants ─────────────────────────────────────────
@@ -239,15 +247,20 @@ initDB().then(() => {
 
 // ── WS message router ──────────────────────────────────────
 function handleMessage(ws, msg, userId) {
-  switch (msg.type) {
-    case 'auth':         return onAuth(ws, msg);
-    case 'create_room':  return onCreateRoom(ws, msg, userId);
-    case 'join_room':    return onJoinRoom(ws, msg, userId);
-    case 'rejoin_room':  return onRejoinRoom(ws, msg, userId);
-    case 'start_game':   return onStartGame(ws, userId);
-    case 'pick_tiles':   return onPickTiles(ws, msg);
-    case 'leave_room':   return handleDisconnect(ws);
-    default: send(ws, { type:'error', message:`Unknown: ${msg.type}` });
+  try {
+    switch (msg.type) {
+      case 'auth':         return onAuth(ws, msg);
+      case 'create_room':  return onCreateRoom(ws, msg, userId);
+      case 'join_room':    return onJoinRoom(ws, msg, userId);
+      case 'rejoin_room':  return onRejoinRoom(ws, msg, userId);
+      case 'start_game':   return onStartGame(ws, userId);
+      case 'pick_tiles':   return onPickTiles(ws, msg);
+      case 'leave_room':   return handleDisconnect(ws);
+      default: send(ws, { type:'error', message:`Unknown: ${msg.type}` });
+    }
+  } catch (err) {
+    console.error('[handleMessage] Unhandled error:', err);
+    try { send(ws, { type:'error', message:'An unexpected error occurred. Please try again.' }); } catch {}
   }
 }
 
@@ -387,7 +400,12 @@ function onPickTiles(ws, payload) {
     return send(ws, { type:'error', message:"It's not your turn." });
 
   const err = applyPickTiles(gs, meta.playerId, payload);
-  if (err) return send(ws, { type:'error', message:err });
+  if (err) {
+    console.warn(`[pick_tiles] Rejected move from ${meta.playerId} in ${meta.roomCode}: ${err}`);
+    return send(ws, { type:'error', message:err });
+  }
+
+  console.log(`[pick_tiles] ${meta.playerId} picked ${payload.color} from ${payload.source} → row ${payload.targetRow} in [${meta.roomCode}]`);
 
   if (gs.phase === 'end') markGameEnded(meta.roomCode);
   else persistRoom(meta.roomCode);
@@ -404,8 +422,10 @@ function applyPickTiles(gs, playerId, { source, factoryIdx, color, targetRow }) 
   let picked = [], getsStart = false;
 
   if (source === 'factory') {
+    if (factoryIdx == null || factoryIdx < 0 || factoryIdx >= gs.factories.length)
+      return 'Invalid factory index.';
     const f = gs.factories[factoryIdx];
-    if (!f?.length)         return 'Invalid factory.';
+    if (!f?.length)         return 'Invalid factory (empty).';
     if (!f.includes(color)) return `No ${COLOR_NAMES[color]} tiles there.`;
     picked = f.filter(t => t === color);
     gs.center.push(...f.filter(t => t !== color));
@@ -572,9 +592,26 @@ function doWallTiling(gs) {
     for(let row=0;row<5;row++){
       const line=board.patternLines[row], maxLen=row+1;
       if(line.length===maxLen){
-        const color=line[0], col=WALL_PATTERN[row].indexOf(color);
-        board.wall[row][col]=color;
-        board.score=Math.max(0,board.score+scoreWallPlacement(board.wall,row,col));
+        const color=line[0];
+        if(!color || !COLORS.includes(color)){
+          // Corrupted line — clear it without scoring
+          console.error(`[doWallTiling] Bad tile '${color}' in row ${row} for player ${pi}`);
+          gs.lid.push(...line.filter(t=>COLORS.includes(t)));
+          board.patternLines[row]=[];
+          continue;
+        }
+        const col=WALL_PATTERN[row].indexOf(color);
+        if(col < 0){
+          console.error(`[doWallTiling] Color '${color}' not in wall pattern row ${row}`);
+          gs.lid.push(...line);
+          board.patternLines[row]=[];
+          continue;
+        }
+        // Don't double-place (shouldn't happen, but guard it)
+        if(!board.wall[row][col]){
+          board.wall[row][col]=color;
+          board.score=Math.max(0,board.score+scoreWallPlacement(board.wall,row,col));
+        }
         for(let i=0;i<maxLen-1;i++)gs.lid.push(color);
         board.patternLines[row]=[];
         if(board.wall[row].every(v=>v!==null))gameEnds=true;
@@ -600,8 +637,12 @@ function prepareNextRound(gs) {
   gs.currentPlayer=gs.nextStartPlayer??(gs.startPlayer+1)%gs.players.length;
   gs.startPlayer=gs.currentPlayer; gs.nextStartPlayer=null;
   const needed=gs.factories.length*4;
-  if(gs.bag.length<needed){gs.bag.push(...shuffle(gs.lid));gs.lid=[];}
-  gs.factories=gs.factories.map(()=>gs.bag.splice(0,4));
+  if(gs.bag.length<needed){
+    gs.bag.push(...shuffle(gs.lid));
+    gs.lid=[];
+  }
+  // If still not enough tiles, pad with whatever's left (rare edge case)
+  gs.factories=gs.factories.map(()=>gs.bag.splice(0,Math.min(4,gs.bag.length)));
 }
 
 function scoreWallPlacement(wall,row,col){
@@ -618,7 +659,11 @@ function scoreWallPlacement(wall,row,col){
 function persistRoom(code) {
   const room = rooms.get(code);
   if (!room) return;
-  saveGame(code, room.gameState, room.players, room.phase);
+  try {
+    saveGame(code, room.gameState, room.players, room.phase);
+  } catch (err) {
+    console.error(`[persistRoom] Failed to save room ${code}:`, err.message);
+  }
 }
 
 // ── Utilities ──────────────────────────────────────────────
