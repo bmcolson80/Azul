@@ -45,6 +45,7 @@ input#otp-code{letter-spacing:12px;font-size:28px}
 .section-title{font-family:'Cinzel',serif;font-size:12px;letter-spacing:3px;color:var(--gold);margin-bottom:14px}
 .game-cards{display:flex;flex-direction:column;gap:10px;margin-bottom:28px}
 .game-card{background:var(--navy-light);border:1px solid rgba(255,255,255,.08);border-radius:var(--radius);padding:16px;display:flex;align-items:center;gap:14px}
+.game-card-active{border-color:rgba(201,162,39,.35);background:rgba(201,162,39,.04)}
 .game-card-info{flex:1;min-width:0}
 .game-card-code{font-family:'Cinzel',serif;font-size:20px;letter-spacing:4px;color:var(--gold)}
 .game-card-meta{font-size:12px;color:rgba(255,255,255,.4);margin-top:3px}
@@ -492,13 +493,21 @@ function renderMyGames(games) {
   }
   section.style.display = 'block';
   list.innerHTML = games.map(g => {
+    const inProgress = g.phase === 'game';
     const phaseLabel = g.phase === 'lobby' ? 'In Lobby' : `Round ${g.round}`;
     const phaseCls   = g.phase === 'lobby' ? 'phase-lobby' : 'phase-game';
     const timeAgo    = formatTimeAgo(g.updatedAt);
     const playerList = (g.players||[]).map(p =>
       `<span class="player-pip" style="background:${p.color};display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:3px"></span><span class="player-pip-name">${p.name.split(' (')[0]}</span>`
     ).join('<span style="color:rgba(255,255,255,.2);margin:0 4px">·</span>');
-    return `<div class="game-card">
+
+    // In-progress games: primary "Continue" button only — no restart option
+    // Lobby games: "Rejoin" to get back to the waiting room
+    const actionBtn = inProgress
+      ? `<button class="btn btn-primary btn-sm" onclick="rejoinRoom('${g.roomCode}')">Continue →</button>`
+      : `<button class="btn btn-secondary btn-sm" onclick="rejoinRoom('${g.roomCode}')">Rejoin</button>`;
+
+    return `<div class="game-card ${inProgress ? 'game-card-active' : ''}">
       <div class="game-card-info">
         <div class="game-card-code">${g.roomCode}</div>
         <div class="game-card-meta">${timeAgo}</div>
@@ -506,7 +515,7 @@ function renderMyGames(games) {
       </div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px">
         <span class="game-phase-badge ${phaseCls}">${phaseLabel}</span>
-        <button class="btn btn-secondary btn-sm" onclick="rejoinRoom('${g.roomCode}')">Rejoin</button>
+        ${actionBtn}
       </div>
     </div>`;
   }).join('');
