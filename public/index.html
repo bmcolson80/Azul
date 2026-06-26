@@ -241,6 +241,28 @@ input#otp-code{letter-spacing:12px;font-size:28px}
 .gob-chip-name{font-size:11px;color:rgba(255,255,255,.55);max-width:70px;overflow:hidden;text-overflow:ellipsis}
 .gob-chip-pts{font-family:'Cinzel',serif;font-size:15px;color:var(--cream);margin-left:4px;font-weight:700}
 .gob-chip.gob-winner .gob-chip-pts{color:var(--gold)}
+
+/* ── Notification settings ── */
+.notif-panel{background:var(--navy-light);border:1px solid rgba(255,255,255,.08);border-radius:var(--radius);padding:16px;margin-bottom:16px}
+.notif-panel-title{font-family:'Cinzel',serif;font-size:11px;letter-spacing:2px;color:var(--gold);margin-bottom:12px}
+.notif-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.05)}
+.notif-row:last-child{border-bottom:none;padding-bottom:0}
+.notif-label{font-size:13px;color:var(--cream-dark);flex:1}
+.notif-sub{font-size:11px;color:rgba(255,255,255,.35);margin-top:2px}
+.toggle{position:relative;width:44px;height:24px;flex-shrink:0}
+.toggle input{opacity:0;width:0;height:0;position:absolute}
+.toggle-slider{position:absolute;inset:0;background:rgba(255,255,255,.15);border-radius:24px;cursor:pointer;transition:background .2s}
+.toggle-slider:before{content:'';position:absolute;height:18px;width:18px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:transform .2s}
+.toggle input:checked + .toggle-slider{background:var(--gold)}
+.toggle input:checked + .toggle-slider:before{transform:translateX(20px)}
+.toggle input:disabled + .toggle-slider{opacity:.4;cursor:not-allowed}
+.notif-status{font-size:11px;padding:6px 10px;border-radius:6px;letter-spacing:.5px}
+.notif-status-ok{background:rgba(78,200,100,.12);color:#4ec864;border:1px solid rgba(78,200,100,.25)}
+.notif-status-off{background:rgba(255,255,255,.06);color:rgba(255,255,255,.4);border:1px solid rgba(255,255,255,.1)}
+.notif-status-err{background:rgba(224,85,85,.12);color:#e08888;border:1px solid rgba(224,85,85,.25)}
+.notif-btn{padding:7px 14px;border-radius:var(--radius-sm);border:1px solid rgba(201,162,39,.3);background:transparent;color:var(--gold);font-family:'Cinzel',serif;font-size:11px;letter-spacing:1px;cursor:pointer;transition:all .2s;white-space:nowrap}
+.notif-btn:active{background:rgba(201,162,39,.1)}
+.notif-btn:disabled{opacity:.4;cursor:not-allowed}
 @media(max-width:360px){.tile{width:24px;height:24px;font-size:11px}.pattern-slot,.wall-slot{width:22px;height:22px}.floor-cell{width:22px;height:22px}.factories-grid{gap:8px}}
 @media(max-width:400px){.user-chip .user-name{display:none}.dh-logo{font-size:15px;letter-spacing:2px}}
 </style>
@@ -352,6 +374,36 @@ input#otp-code{letter-spacing:12px;font-size:28px}
     <div id="my-games-section">
       <div class="section-title">YOUR ACTIVE GAMES</div>
       <div class="game-cards" id="my-games-list"></div>
+    </div>
+
+
+    <!-- Notification settings -->
+    <div class="section-title">NOTIFICATIONS</div>
+    <div class="notif-panel" id="notif-panel">
+      <div class="notif-panel-title">PUSH NOTIFICATIONS</div>
+      <div class="notif-row">
+        <div>
+          <div class="notif-label">Your turn alerts</div>
+          <div class="notif-sub">Get notified when it's your move</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <span class="notif-status notif-status-off" id="notif-status-text">Off</span>
+          <label class="toggle">
+            <input type="checkbox" id="notif-toggle" onchange="handleNotifToggle(this.checked)" disabled>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </div>
+      <div class="notif-row" id="notif-browser-row" style="display:none">
+        <div>
+          <div class="notif-label">Browser permission</div>
+          <div class="notif-sub" id="notif-browser-sub">Not yet requested</div>
+        </div>
+        <button class="notif-btn" id="notif-request-btn" onclick="requestNotifPermission()">Enable</button>
+      </div>
+      <div id="notif-unsupported" style="display:none;font-size:12px;color:rgba(255,255,255,.3);padding:8px 0">
+        Push notifications are not supported in this browser.
+      </div>
     </div>
 
     <!-- New game -->
@@ -687,6 +739,7 @@ function onLoggedIn() {
   loadMyGames();
   showScreen('dashboard');
   connectWS();
+  initPushNotifications();
 }
 
 // ── Check session on load ──────────────────────────────────
@@ -1594,6 +1647,184 @@ function showRulesTab(tab) {
 document.getElementById('rules-modal').addEventListener('click', function(e) {
   if (e.target === this) closeRules();
 });
+
+
+// ── Push Notifications ────────────────────────────────────
+let _swReg = null;
+let _vapidKey = null;
+let _currentSub = null;
+
+async function initPushNotifications() {
+  const panel = document.getElementById('notif-panel');
+  if (!panel) return;
+
+  // Check browser support
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+    document.getElementById('notif-unsupported').style.display = 'block';
+    document.getElementById('notif-toggle').parentElement.parentElement.style.display = 'none';
+    return;
+  }
+
+  // Fetch VAPID public key and push status from server
+  try {
+    const [keyRes, statusRes] = await Promise.all([
+      fetch('/api/push/vapid-key'),
+      fetch('/api/push/status'),
+    ]);
+    const keyData    = await keyRes.json();
+    const statusData = statusRes.ok ? await statusRes.json() : {};
+
+    if (!keyData.publicKey) {
+      // VAPID keys not configured on server — show disabled state
+      updateNotifUI('unavailable');
+      return;
+    }
+    _vapidKey = keyData.publicKey;
+
+    // Register service worker
+    _swReg = await navigator.serviceWorker.register('/sw.js');
+
+    // Check current subscription
+    _currentSub = await _swReg.pushManager.getSubscription();
+
+    const permState = Notification.permission;
+    updateNotifUI(permState, statusData.enabled && _currentSub != null);
+
+    // Auto-subscribe if they've enabled it before and permission is granted
+    if (permState === 'granted' && statusData.subscribed && !_currentSub) {
+      await subscribePush();
+    }
+
+  } catch (err) {
+    console.warn('[push] Init failed:', err.message);
+    updateNotifUI('unavailable');
+  }
+}
+
+function updateNotifUI(permState, enabled = false) {
+  const toggle   = document.getElementById('notif-toggle');
+  const statusEl = document.getElementById('notif-status-text');
+  const browserRow = document.getElementById('notif-browser-row');
+  const browserSub = document.getElementById('notif-browser-sub');
+  const reqBtn   = document.getElementById('notif-request-btn');
+
+  if (permState === 'unavailable') {
+    statusEl.textContent = 'Unavailable';
+    statusEl.className = 'notif-status notif-status-err';
+    toggle.disabled = true;
+    return;
+  }
+
+  if (permState === 'denied') {
+    statusEl.textContent = 'Blocked by browser';
+    statusEl.className = 'notif-status notif-status-err';
+    toggle.disabled = true;
+    browserRow.style.display = 'flex';
+    browserSub.textContent = 'Unblock in browser settings → Site permissions';
+    reqBtn.style.display = 'none';
+    return;
+  }
+
+  if (permState === 'default') {
+    // Not yet asked
+    statusEl.textContent = 'Off';
+    statusEl.className = 'notif-status notif-status-off';
+    toggle.disabled = false;
+    toggle.checked = false;
+    browserRow.style.display = 'flex';
+    browserSub.textContent = 'Permission needed';
+    reqBtn.style.display = 'inline-block';
+    return;
+  }
+
+  // permState === 'granted'
+  browserRow.style.display = 'none';
+  toggle.disabled = false;
+  toggle.checked = enabled;
+  if (enabled) {
+    statusEl.textContent = 'On';
+    statusEl.className = 'notif-status notif-status-ok';
+  } else {
+    statusEl.textContent = 'Off';
+    statusEl.className = 'notif-status notif-status-off';
+  }
+}
+
+async function requestNotifPermission() {
+  const btn = document.getElementById('notif-request-btn');
+  btn.disabled = true;
+  const perm = await Notification.requestPermission();
+  if (perm === 'granted') {
+    await subscribePush();
+    updateNotifUI('granted', true);
+    document.getElementById('notif-toggle').checked = true;
+    showToast('Notifications enabled!');
+  } else {
+    updateNotifUI(perm, false);
+    btn.disabled = false;
+  }
+}
+
+async function handleNotifToggle(checked) {
+  if (!_swReg || !_vapidKey) return;
+  try {
+    if (checked) {
+      if (Notification.permission !== 'granted') {
+        const perm = await Notification.requestPermission();
+        if (perm !== 'granted') {
+          document.getElementById('notif-toggle').checked = false;
+          updateNotifUI(perm, false);
+          return;
+        }
+      }
+      await subscribePush();
+      updateNotifUI('granted', true);
+      showToast('Turn notifications on');
+    } else {
+      await unsubscribePush();
+      updateNotifUI('granted', false);
+      showToast('Turn notifications off');
+    }
+  } catch (err) {
+    console.error('[push] Toggle failed:', err);
+    showToast('Could not update notification settings');
+    document.getElementById('notif-toggle').checked = !checked;
+  }
+}
+
+async function subscribePush() {
+  if (!_swReg || !_vapidKey) return;
+  const sub = await _swReg.pushManager.subscribe({
+    userVisibleOnly: true,
+    applicationServerKey: urlBase64ToUint8Array(_vapidKey),
+  });
+  _currentSub = sub;
+  const subJson = sub.toJSON();
+  await fetch('/api/push/subscribe', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ endpoint: subJson.endpoint, keys: subJson.keys }),
+  });
+}
+
+async function unsubscribePush() {
+  await fetch('/api/push/enabled', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ enabled: false }),
+  });
+  if (_currentSub) {
+    await _currentSub.unsubscribe();
+    _currentSub = null;
+  }
+}
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = atob(base64);
+  return Uint8Array.from([...rawData].map(c => c.charCodeAt(0)));
+}
 
 // ── Boot ───────────────────────────────────────────────────
 checkSession();

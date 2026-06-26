@@ -12,7 +12,10 @@ import jwt            from 'jsonwebtoken';
 import { fileURLToPath } from 'url';
 import { initDB, save as saveDB, createUser, getUserByEmail, getUserById,
          saveGame, getGameByCode, getGamesForUser, linkPlayerToGame, markGameEnded,
-         createOTP, getValidOTP, consumeOTP, updateUserPassword } from './db.js';
+         createOTP, getValidOTP, consumeOTP, updateUserPassword,
+         savePushSubscription, removePushSubscription, setPushEnabled,
+         getPushSubscriptions, getUserPushStatus } from './db.js';
+import webpush from 'web-push';
 import { Resend } from 'resend';
 
 const resend = process.env.RESEND_API_KEY
@@ -30,6 +33,39 @@ process.on('unhandledRejection', (reason) => {
   console.error('[UNHANDLED REJECTION]', reason);
 });
 const JWT_SECRET = process.env.JWT_SECRET || 'colmedorno-secret-change-in-production';
+
+// ── Web Push / VAPID ───────────────────────────────────────
+const VAPID_PUBLIC  = process.env.VAPID_PUBLIC_KEY  || '';
+const VAPID_PRIVATE = process.env.VAPID_PRIVATE_KEY || '';
+const VAPID_EMAIL   = process.env.VAPID_EMAIL || 'mailto:admin@colmedorno.app';
+
+if (VAPID_PUBLIC && VAPID_PRIVATE) {
+  webpush.setVapidDetails(VAPID_EMAIL, VAPID_PUBLIC, VAPID_PRIVATE);
+  console.log('🔔 Push notifications enabled');
+} else {
+  console.log('⚠️  Push notifications disabled (set VAPID_PUBLIC_KEY + VAPID_PRIVATE_KEY)');
+}
+
+async function sendPushToUser(userId, payload) {
+  if (!VAPID_PUBLIC || !VAPID_PRIVATE) return;
+  const subs = getPushSubscriptions(userId);
+  for (const sub of subs) {
+    try {
+      await webpush.sendNotification(
+        { endpoint: sub.endpoint, keys: sub.keys },
+        JSON.stringify(payload)
+      );
+    } catch (err) {
+      // 410 Gone = subscription expired, remove it
+      if (err.statusCode === 410) {
+        removePushSubscription(userId, sub.endpoint);
+        console.log('[push] Removed expired subscription for user', userId);
+      } else {
+        console.error('[push] Send failed:', err.message);
+      }
+    }
+  }
+}
 
 // ── Game constants ─────────────────────────────────────────
 const COLORS       = ['B','C','R','Y','K'];
@@ -127,6 +163,40 @@ app.get('/api/my-games', requireAuth, (req, res) => {
     updatedAt:  g.updated,
   }))});
 });
+
+// ── Push notification routes ───────────────────────────────
+
+app.get('/api/push/vapid-key', (_, res) => {
+  res.json({ publicKey: VAPID_PUBLIC || null });
+});
+
+app.post('/api/push/subscribe', requireAuth, (req, res) => {
+  const { endpoint, keys } = req.body;
+  if (!endpoint || !keys) return res.status(400).json({ error: 'endpoint and keys required' });
+  const { generateId: _ } = {}; // not needed here
+  const id = Math.random().toString(36).substr(2, 9);
+  savePushSubscription({ id, userId: req.user.id, endpoint, keys });
+  res.json({ ok: true });
+});
+
+app.post('/api/push/unsubscribe', requireAuth, (req, res) => {
+  const { endpoint } = req.body;
+  if (!endpoint) return res.status(400).json({ error: 'endpoint required' });
+  removePushSubscription(req.user.id, endpoint);
+  res.json({ ok: true });
+});
+
+app.post('/api/push/enabled', requireAuth, (req, res) => {
+  const { enabled } = req.body;
+  setPushEnabled(req.user.id, !!enabled);
+  res.json({ ok: true });
+});
+
+app.get('/api/push/status', requireAuth, (req, res) => {
+  const status = getUserPushStatus(req.user.id);
+  res.json({ ...status, vapidAvailable: !!(VAPID_PUBLIC && VAPID_PRIVATE) });
+});
+
 // ── Password reset routes ──────────────────────────────────
 
 app.post('/api/forgot-password', async (req, res) => {
@@ -387,6 +457,20 @@ function onStartGame(ws, userId) {
   broadcast(meta.roomCode, { type:'game_started', gameState:room.gameState });
   console.log(`[${meta.roomCode}] Game started`);
   maybeScheduleAI(meta.roomCode);
+
+  // Notify all human players except the host who just started it
+  room.players.forEach(p => {
+    if (!p.isAI && p.userId && p.userId !== meta.userId) {
+      sendPushToUser(p.userId, {
+        title: 'Colmedorno game started!',
+        body: 'A game you\'re in has started — your move is coming up',
+        icon: '/icon-192.png',
+        badge: '/badge-72.png',
+        tag: 'colmedorno-start-' + meta.roomCode,
+        data: { roomCode: meta.roomCode, url: '/' },
+      });
+    }
+  });
 }
 
 // ── Abandon game (host only) ──────────────────────────────
@@ -434,6 +518,21 @@ function onPickTiles(ws, payload) {
 
   broadcast(meta.roomCode, { type:'state_update', gameState:gs });
   maybeScheduleAI(meta.roomCode);
+
+  // Push notification to the next player if it's their turn
+  if (gs.phase === 'factory') {
+    const nextPlayer = gs.players[gs.currentPlayer];
+    if (nextPlayer && !nextPlayer.isAI && nextPlayer.userId && nextPlayer.userId !== meta.userId) {
+      sendPushToUser(nextPlayer.userId, {
+        title: 'Your turn in Colmedorno!',
+        body: `It\'s your turn — Round ${gs.round}`,
+        icon: '/icon-192.png',
+        badge: '/badge-72.png',
+        tag: 'colmedorno-turn-' + meta.roomCode,
+        data: { roomCode: meta.roomCode, url: '/' },
+      });
+    }
+  }
 }
 
 // ── Core move logic ────────────────────────────────────────
