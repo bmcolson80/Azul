@@ -14,13 +14,29 @@ import { initDB, save as saveDB, createUser, getUserByEmail, getUserById,
          saveGame, getGameByCode, getGamesForUser, linkPlayerToGame, markGameEnded,
          createOTP, getValidOTP, consumeOTP, updateUserPassword,
          savePushSubscription, removePushSubscription, setPushEnabled,
-         getPushSubscriptions, getUserPushStatus } from './db.js';
+         getPushSubscriptions, getUserPushStatus,
+         updateUserEmail, updateUserPhone, setPhoneVerified, setEmailVerified,
+         updateNotifyPrefs, getUsersToNotify } from './db.js';
 import webpush from 'web-push';
 import { Resend } from 'resend';
 
 const resend = process.env.RESEND_API_KEY
   ? new Resend(process.env.RESEND_API_KEY)
   : null;
+
+// ── Twilio SMS ─────────────────────────────────────────────
+import twilio from 'twilio';
+const twilioClient = (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN)
+  ? twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN)
+  : null;
+const TWILIO_FROM = process.env.TWILIO_PHONE_NUMBER || '';
+
+async function sendSMS(to, body) {
+  if (!twilioClient) { console.log('[DEV] SMS to', to, ':', body); return; }
+  try {
+    await twilioClient.messages.create({ from: TWILIO_FROM, to, body });
+  } catch (err) { console.error('[SMS] Failed:', err.message); }
+}
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT      = process.env.PORT || 3000;
@@ -44,6 +60,41 @@ if (VAPID_PUBLIC && VAPID_PRIVATE) {
   console.log('🔔 Push notifications enabled');
 } else {
   console.log('⚠️  Push notifications disabled (set VAPID_PUBLIC_KEY + VAPID_PRIVATE_KEY)');
+}
+
+async function sendEmailNotification(userId, subject, html) {
+  if (!resend) return;
+  const user = getUserById(userId);
+  if (!user || !user.notify_email) return;
+  try {
+    await resend.emails.send({
+      from: 'Colmedorno <noreply@' + (process.env.EMAIL_DOMAIN || 'colmedorno.app') + '>',
+      to: user.email,
+      subject,
+      html,
+    });
+  } catch (err) { console.error('[email notify] Failed:', err.message); }
+}
+
+async function sendSMSNotification(userId, body) {
+  const user = getUserById(userId);
+  if (!user || !user.notify_sms || !user.phone || !user.phone_verified) return;
+  await sendSMS(user.phone, body);
+}
+
+async function notifyPlayer(userId, excludeUserId, { title, body, roomCode }) {
+  if (userId === excludeUserId) return;
+  const emailHtml = `<div style="font-family:sans-serif;max-width:400px;margin:0 auto;padding:32px;background:#1a1f3a;color:#f5ecd7;border-radius:12px">
+    <h1 style="font-family:serif;color:#c9a227;letter-spacing:4px;margin:0 0 8px">COLMEDORNO</h1>
+    <p style="margin:0 0 16px;font-size:16px">${title}</p>
+    <p style="color:rgba(245,236,215,0.6);margin:0 0 24px">${body}</p>
+    <a href="${process.env.APP_URL || 'https://colmedorno.up.railway.app'}" style="background:#c9a227;color:#1a1f3a;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:700;font-family:serif">Open Game →</a>
+  </div>`;
+  await Promise.all([
+    sendPushToUser(userId, { title, body, icon:'/icon-192.png', badge:'/badge-72.png', tag:'colmedorno-'+roomCode, data:{ roomCode, url:'/' } }),
+    sendEmailNotification(userId, title, emailHtml),
+    sendSMSNotification(userId, `${title} — ${body} colmedorno.up.railway.app`),
+  ]);
 }
 
 async function sendPushToUser(userId, payload) {
@@ -195,6 +246,114 @@ app.post('/api/push/enabled', requireAuth, (req, res) => {
 app.get('/api/push/status', requireAuth, (req, res) => {
   const status = getUserPushStatus(req.user.id);
   res.json({ ...status, vapidAvailable: !!(VAPID_PUBLIC && VAPID_PRIVATE) });
+});
+
+
+// ── Profile routes ─────────────────────────────────────────
+
+app.get('/api/profile', requireAuth, (req, res) => {
+  const user = getUserById(req.user.id);
+  if (!user) return res.status(404).json({ error: 'User not found' });
+  res.json({ user: {
+    id: user.id, name: user.name, email: user.email,
+    emailVerified: !!user.email_verified,
+    phone: user.phone || null,
+    phoneVerified: !!user.phone_verified,
+    notifyEmail: !!user.notify_email,
+    notifySms: !!user.notify_sms,
+  }});
+});
+
+app.post('/api/profile/notify', requireAuth, (req, res) => {
+  const { notifyEmail, notifySms } = req.body;
+  updateNotifyPrefs(req.user.id, { notifyEmail: !!notifyEmail, notifySms: !!notifySms });
+  res.json({ ok: true });
+});
+
+// ── Phone verification ──────────────────────────────────────
+
+app.post('/api/profile/phone/send-otp', requireAuth, async (req, res) => {
+  const { phone } = req.body;
+  if (!phone?.trim()) return res.status(400).json({ error: 'Phone number required' });
+  // Basic E.164 format check
+  if (!/^\+[1-9]\d{7,14}$/.test(phone.trim()))
+    return res.status(400).json({ error: 'Phone must be in E.164 format, e.g. +61412345678' });
+
+  const code = String(Math.floor(100000 + Math.random() * 900000));
+  const expiresAt = Math.floor(Date.now() / 1000) + 15 * 60;
+  const id = generateId();
+  createOTP({ id, email: phone.trim(), code, expiresAt });
+
+  await sendSMS(phone.trim(), `Your Colmedorno verification code is: ${code}. Valid for 15 minutes.`);
+  res.json({ ok: true });
+});
+
+app.post('/api/profile/phone/verify', requireAuth, async (req, res) => {
+  const { phone, code } = req.body;
+  if (!phone || !code) return res.status(400).json({ error: 'Phone and code required' });
+  const otp = getValidOTP(phone.trim(), code.trim());
+  if (!otp) return res.status(400).json({ error: 'Invalid or expired code.' });
+  consumeOTP(otp.id);
+  updateUserPhone(req.user.id, phone.trim());
+  setPhoneVerified(req.user.id);
+  res.json({ ok: true });
+});
+
+app.delete('/api/profile/phone', requireAuth, (req, res) => {
+  updateUserPhone(req.user.id, null);
+  res.json({ ok: true });
+});
+
+// ── Change email (requires verified phone) ──────────────────
+
+app.post('/api/profile/email/request-change', requireAuth, async (req, res) => {
+  const { newEmail } = req.body;
+  if (!newEmail?.trim()) return res.status(400).json({ error: 'New email required' });
+  const user = getUserById(req.user.id);
+  if (!user) return res.status(404).json({ error: 'User not found' });
+  if (!user.phone_verified)
+    return res.status(403).json({ error: 'A verified mobile number is required to change your email address.' });
+  if (getUserByEmail(newEmail))
+    return res.status(409).json({ error: 'That email address is already in use.' });
+
+  // Send OTP to new email address to verify they own it
+  const code = String(Math.floor(100000 + Math.random() * 900000));
+  const expiresAt = Math.floor(Date.now() / 1000) + 15 * 60;
+  createOTP({ id: generateId(), email: newEmail.trim().toLowerCase(), code, expiresAt });
+
+  if (resend) {
+    await resend.emails.send({
+      from: 'Colmedorno <noreply@' + (process.env.EMAIL_DOMAIN || 'colmedorno.app') + '>',
+      to: newEmail.trim(),
+      subject: 'Verify your new email address',
+      html: `<div style="font-family:sans-serif;padding:32px;background:#1a1f3a;color:#f5ecd7;border-radius:12px;max-width:400px;margin:0 auto">
+        <h1 style="color:#c9a227;font-family:serif;letter-spacing:4px">COLMEDORNO</h1>
+        <p>Your email change verification code is:</p>
+        <div style="background:#252c50;border:2px dashed #c9a227;border-radius:8px;padding:20px;text-align:center;margin:16px 0">
+          <span style="font-family:monospace;font-size:36px;font-weight:700;letter-spacing:12px;color:#c9a227">${code}</span>
+        </div>
+        <p style="color:rgba(245,236,215,0.5);font-size:12px">Expires in 15 minutes.</p>
+      </div>`,
+    });
+  } else {
+    console.log('[DEV] Email change OTP for', newEmail, ':', code);
+  }
+  res.json({ ok: true });
+});
+
+app.post('/api/profile/email/confirm-change', requireAuth, async (req, res) => {
+  const { newEmail, code } = req.body;
+  if (!newEmail || !code) return res.status(400).json({ error: 'Email and code required' });
+  const otp = getValidOTP(newEmail.trim().toLowerCase(), code.trim());
+  if (!otp) return res.status(400).json({ error: 'Invalid or expired code.' });
+  consumeOTP(otp.id);
+  updateUserEmail(req.user.id, newEmail.trim());
+  setEmailVerified(req.user.id);
+  // Refresh JWT with new email
+  const user = getUserById(req.user.id);
+  const token = jwt.sign({ id: user.id, email: user.email, name: user.name }, JWT_SECRET, { expiresIn: '30d' });
+  res.cookie('azul_token', token, { httpOnly: true, sameSite: 'lax', maxAge: 30*24*60*60*1000 });
+  res.json({ ok: true, user: { id: user.id, email: user.email, name: user.name } });
 });
 
 // ── Password reset routes ──────────────────────────────────
@@ -458,16 +617,13 @@ function onStartGame(ws, userId) {
   console.log(`[${meta.roomCode}] Game started`);
   maybeScheduleAI(meta.roomCode);
 
-  // Notify all human players except the host who just started it
+  // Notify all human players except the host
   room.players.forEach(p => {
-    if (!p.isAI && p.userId && p.userId !== meta.userId) {
-      sendPushToUser(p.userId, {
+    if (!p.isAI && p.userId) {
+      notifyPlayer(p.userId, meta.userId, {
         title: 'Colmedorno game started!',
-        body: 'A game you\'re in has started — your move is coming up',
-        icon: '/icon-192.png',
-        badge: '/badge-72.png',
-        tag: 'colmedorno-start-' + meta.roomCode,
-        data: { roomCode: meta.roomCode, url: '/' },
+        body: 'A game you are in has started — your move is coming up',
+        roomCode: meta.roomCode,
       });
     }
   });
@@ -519,17 +675,14 @@ function onPickTiles(ws, payload) {
   broadcast(meta.roomCode, { type:'state_update', gameState:gs });
   maybeScheduleAI(meta.roomCode);
 
-  // Push notification to the next player if it's their turn
+  // Notify next player across all channels
   if (gs.phase === 'factory') {
     const nextPlayer = gs.players[gs.currentPlayer];
-    if (nextPlayer && !nextPlayer.isAI && nextPlayer.userId && nextPlayer.userId !== meta.userId) {
-      sendPushToUser(nextPlayer.userId, {
+    if (nextPlayer && !nextPlayer.isAI && nextPlayer.userId) {
+      notifyPlayer(nextPlayer.userId, meta.userId, {
         title: 'Your turn in Colmedorno!',
-        body: `It\'s your turn — Round ${gs.round}`,
-        icon: '/icon-192.png',
-        badge: '/badge-72.png',
-        tag: 'colmedorno-turn-' + meta.roomCode,
-        data: { roomCode: meta.roomCode, url: '/' },
+        body: `Round ${gs.round} — make your move`,
+        roomCode: meta.roomCode,
       });
     }
   }

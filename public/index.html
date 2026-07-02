@@ -200,8 +200,65 @@ input#otp-code{letter-spacing:12px;font-size:28px}
 .score-pts{font-family:'Cinzel',serif;font-size:20px;color:var(--gold);min-width:36px;text-align:right}
 .penalty-row{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}
 .penalty-chip{background:rgba(224,85,85,.12);border:1px solid rgba(224,85,85,.25);border-radius:6px;padding:4px 10px;font-size:12px;color:#e08888;font-family:'Cinzel',serif}
+
+/* ── Menu drawer ── */
+.menu-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:400;opacity:0;pointer-events:none;transition:opacity .25s}
+.menu-overlay.open{opacity:1;pointer-events:all}
+.menu-drawer{position:fixed;top:0;left:0;bottom:0;width:300px;max-width:85vw;background:var(--navy-light);z-index:401;transform:translateX(-100%);transition:transform .25s ease;display:flex;flex-direction:column;box-shadow:4px 0 24px rgba(0,0,0,.4)}
+.menu-drawer.open{transform:translateX(0)}
+.menu-drawer-header{padding:20px 20px 16px;border-bottom:1px solid rgba(255,255,255,.08);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.menu-drawer-logo{font-family:'Cinzel',serif;font-size:16px;letter-spacing:4px;color:var(--gold)}
+.menu-close{background:none;border:none;color:rgba(255,255,255,.4);font-size:20px;cursor:pointer;padding:4px 8px;border-radius:4px}
+.menu-close:active{background:rgba(255,255,255,.08)}
+.menu-user{padding:16px 20px;border-bottom:1px solid rgba(255,255,255,.06);display:flex;align-items:center;gap:12px}
+.menu-avatar{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,var(--gold),#a07a1a);display:flex;align-items:center;justify-content:center;font-family:'Cinzel',serif;font-size:16px;font-weight:700;color:var(--navy);flex-shrink:0}
+.menu-user-info{min-width:0}
+.menu-user-name{font-size:14px;font-weight:700;color:var(--cream);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.menu-user-email{font-size:11px;color:rgba(255,255,255,.4);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.menu-body{flex:1;overflow-y:auto;padding:8px 0}
+.menu-section-title{font-size:10px;letter-spacing:3px;color:rgba(255,255,255,.3);text-transform:uppercase;padding:16px 20px 6px}
+.menu-item{display:flex;align-items:center;gap:12px;padding:12px 20px;cursor:pointer;transition:background .15s;border:none;background:none;width:100%;text-align:left;color:var(--cream-dark);font-size:13px;font-family:'Lato',sans-serif}
+.menu-item:active{background:rgba(255,255,255,.05)}
+.menu-item .menu-icon{width:20px;text-align:center;font-size:16px;flex-shrink:0}
+.menu-item .menu-label{flex:1}
+.menu-item .menu-badge{font-size:10px;padding:2px 7px;border-radius:10px;background:rgba(78,200,100,.15);color:#4ec864;border:1px solid rgba(78,200,100,.25)}
+.menu-item .menu-badge.warn{background:rgba(201,162,39,.15);color:var(--gold);border-color:rgba(201,162,39,.3)}
+.menu-divider{height:1px;background:rgba(255,255,255,.06);margin:8px 20px}
+.menu-footer{padding:16px 20px;border-top:1px solid rgba(255,255,255,.06);flex-shrink:0}
+
+/* ── Menu sub-panels (settings pages) ── */
+.menu-panel{position:fixed;top:0;left:0;bottom:0;width:300px;max-width:85vw;background:var(--navy);z-index:402;transform:translateX(-100%);transition:transform .25s ease;display:flex;flex-direction:column;box-shadow:4px 0 24px rgba(0,0,0,.4)}
+.menu-panel.open{transform:translateX(0)}
+.menu-panel-header{padding:16px 20px;border-bottom:1px solid rgba(255,255,255,.08);display:flex;align-items:center;gap:12px;flex-shrink:0}
+.menu-panel-back{background:none;border:none;color:rgba(255,255,255,.5);font-size:18px;cursor:pointer;padding:4px;flex-shrink:0}
+.menu-panel-title{font-family:'Cinzel',serif;font-size:13px;letter-spacing:2px;color:var(--gold)}
+.menu-panel-body{flex:1;overflow-y:auto;padding:16px 20px}
+.menu-panel .field-group{margin-bottom:14px}
+.menu-panel label{font-size:10px;letter-spacing:2px;color:rgba(255,255,255,.4);text-transform:uppercase;margin-bottom:5px;display:block}
+.menu-panel input{font-size:15px;padding:10px 12px}
+.menu-panel .btn{margin-bottom:8px}
+.phone-row{display:flex;gap:8px}
+.country-code-select{background:var(--navy);border:1px solid rgba(255,255,255,.15);border-radius:var(--radius-sm);color:var(--cream);font-family:'Lato',sans-serif;font-size:15px;padding:10px 8px;outline:none;width:100px;flex-shrink:0}
+.verify-badge{display:inline-flex;align-items:center;gap:4px;font-size:11px;padding:3px 8px;border-radius:10px;margin-left:8px}
+.verify-badge.verified{background:rgba(78,200,100,.15);color:#4ec864;border:1px solid rgba(78,200,100,.25)}
+.verify-badge.unverified{background:rgba(201,162,39,.12);color:var(--gold);border:1px solid rgba(201,162,39,.25)}
+.notif-channel{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.05)}
+.notif-channel:last-child{border-bottom:none}
+.notif-channel-info{flex:1}
+.notif-channel-name{font-size:13px;color:var(--cream-dark)}
+.notif-channel-sub{font-size:11px;color:rgba(255,255,255,.3);margin-top:2px}
+
+/* ── Dashboard desktop layout ── */
+@media(min-width:768px){
+  .dashboard-body{max-width:none;padding:24px}
+  .dashboard-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start}
+  .dashboard-col{}
+}
+
+/* ── Menu button (shared style) ── */
 .btn-menu{background:transparent;border:1px solid rgba(255,255,255,.15);color:rgba(255,255,255,.6);border-radius:6px;padding:5px 10px;font-size:16px;cursor:pointer;transition:all .2s;flex-shrink:0;line-height:1}
 .btn-menu:active{background:rgba(255,255,255,.08);color:var(--cream)}
+
 .btn-rules{background:transparent;border:1px solid rgba(201,162,39,.3);color:rgba(201,162,39,.8);border-radius:6px;padding:5px 10px;font-size:11px;letter-spacing:1px;cursor:pointer;font-family:'Cinzel',serif;transition:all .2s;white-space:nowrap}
 .btn-rules:active{background:rgba(201,162,39,.1)}
 .btn-danger-sm{background:transparent;border:1px solid rgba(224,85,85,.3);color:#e08888;border-radius:6px;padding:5px 10px;font-size:11px;letter-spacing:1px;cursor:pointer;font-family:'Cinzel',serif;transition:all .2s;white-space:nowrap}
@@ -463,68 +520,68 @@ input#otp-code{letter-spacing:12px;font-size:28px}
       <button class="btn-rules" onclick="openRules()">📖 Rules</button>
       <div class="avatar" id="user-avatar">?</div>
       <span id="user-name-display" class="user-name"></span>
-      <button class="btn btn-secondary btn-sm" onclick="doLogout()">Sign Out</button>
+      <button class="btn-menu" onclick="openMenu()" title="Menu">☰</button>
     </div>
   </div>
 
   <div class="dashboard-body">
-    <!-- Active games -->
-    <div id="my-games-section">
-      <div class="section-title">YOUR ACTIVE GAMES</div>
-      <div class="game-cards" id="my-games-list"></div>
-    </div>
-
-
-    <!-- Notification settings -->
-    <div class="section-title">NOTIFICATIONS</div>
-    <div class="notif-panel" id="notif-panel">
-      <div class="notif-panel-title">PUSH NOTIFICATIONS</div>
-      <div class="notif-row">
-        <div>
-          <div class="notif-label">Your turn alerts</div>
-          <div class="notif-sub">Get notified when it's your move</div>
+    <div class="dashboard-grid">
+      <!-- LEFT COLUMN -->
+      <div class="dashboard-col">
+        <div id="my-games-section">
+          <div class="section-title">YOUR ACTIVE GAMES</div>
+          <div class="game-cards" id="my-games-list"></div>
         </div>
-        <div style="display:flex;align-items:center;gap:10px">
-          <span class="notif-status notif-status-off" id="notif-status-text">Off</span>
-          <label class="toggle">
-            <input type="checkbox" id="notif-toggle" onchange="handleNotifToggle(this.checked)" disabled>
-            <span class="toggle-slider"></span>
-          </label>
+        <div class="section-title">NEW GAME</div>
+        <div class="card" style="margin-bottom:16px">
+          <div class="error-msg" id="dash-error"></div>
+          <div class="ai-section">
+            <div class="ai-section-title">AI Opponents</div>
+            <div class="ai-slots" id="ai-slots"></div>
+            <button class="add-ai-btn" id="add-ai-btn" onclick="addAISlot()">+ Add AI Player</button>
+          </div>
+          <button class="btn btn-primary" id="create-btn" onclick="createRoom()">Create Game</button>
         </div>
       </div>
-      <div class="notif-row" id="notif-browser-row" style="display:none">
-        <div>
-          <div class="notif-label">Browser permission</div>
-          <div class="notif-sub" id="notif-browser-sub">Not yet requested</div>
+      <!-- RIGHT COLUMN -->
+      <div class="dashboard-col">
+        <div class="section-title">JOIN A GAME</div>
+        <div class="card" style="margin-bottom:16px">
+          <div class="error-msg" id="join-error"></div>
+          <div class="field-group">
+            <label>Room Code</label>
+            <input type="text" id="join-code" class="code-input" placeholder="XXXX" maxlength="4" autocomplete="off" oninput="this.value=this.value.toUpperCase();this.closest('.card').querySelector('#join-error').style.display='none'">
+          </div>
+          <button class="btn btn-secondary" onclick="joinRoom()">Join Game</button>
         </div>
-        <button class="notif-btn" id="notif-request-btn" onclick="requestNotifPermission()">Enable</button>
+        <div class="section-title">NOTIFICATIONS</div>
+        <div class="notif-panel" id="notif-panel">
+          <div class="notif-panel-title">PUSH NOTIFICATIONS</div>
+          <div class="notif-row">
+            <div>
+              <div class="notif-label">Your turn alerts</div>
+              <div class="notif-sub">Get notified when it's your move</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px">
+              <span class="notif-status notif-status-off" id="notif-status-text">Off</span>
+              <label class="toggle">
+                <input type="checkbox" id="notif-toggle" onchange="handleNotifToggle(this.checked)" disabled>
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+          </div>
+          <div class="notif-row" id="notif-browser-row" style="display:none">
+            <div>
+              <div class="notif-label">Browser permission</div>
+              <div class="notif-sub" id="notif-browser-sub">Not yet requested</div>
+            </div>
+            <button class="notif-btn" id="notif-request-btn" onclick="requestNotifPermission()">Enable</button>
+          </div>
+          <div id="notif-unsupported" style="display:none;font-size:12px;color:rgba(255,255,255,.3);padding:8px 0">
+            Push notifications are not supported in this browser.
+          </div>
+        </div>
       </div>
-      <div id="notif-unsupported" style="display:none;font-size:12px;color:rgba(255,255,255,.3);padding:8px 0">
-        Push notifications are not supported in this browser.
-      </div>
-    </div>
-
-    <!-- New game -->
-    <div class="section-title">NEW GAME</div>
-    <div class="card" style="margin-bottom:16px">
-      <div class="error-msg" id="dash-error"></div>
-      <div class="ai-section">
-        <div class="ai-section-title">AI Opponents</div>
-        <div class="ai-slots" id="ai-slots"></div>
-        <button class="add-ai-btn" id="add-ai-btn" onclick="addAISlot()">+ Add AI Player</button>
-      </div>
-      <button class="btn btn-primary" id="create-btn" onclick="createRoom()">Create Game</button>
-    </div>
-
-    <!-- Join existing -->
-    <div class="section-title">JOIN A GAME</div>
-    <div class="card">
-      <div class="error-msg" id="join-error"></div>
-      <div class="field-group">
-        <label>Room Code</label>
-        <input type="text" id="join-code" class="code-input" placeholder="XXXX" maxlength="4" autocomplete="off" oninput="this.value=this.value.toUpperCase();this.closest('.card').querySelector('#join-error').style.display='none'">
-      </div>
-      <button class="btn btn-secondary" onclick="joinRoom()">Join Game</button>
     </div>
   </div>
 </div>
@@ -727,6 +784,193 @@ input#otp-code{letter-spacing:12px;font-size:28px}
         </ul>
       </div>
 
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══ MENU DRAWER ═══ -->
+<div class="menu-overlay" id="menu-overlay" onclick="closeMenu()"></div>
+<div class="menu-drawer" id="menu-drawer">
+  <div class="menu-drawer-header">
+    <span class="menu-drawer-logo">COLMEDORNO</span>
+    <button class="menu-close" onclick="closeMenu()">✕</button>
+  </div>
+  <div class="menu-user">
+    <div class="menu-avatar" id="menu-avatar">?</div>
+    <div class="menu-user-info">
+      <div class="menu-user-name" id="menu-user-name">–</div>
+      <div class="menu-user-email" id="menu-user-email">–</div>
+    </div>
+  </div>
+  <div class="menu-body">
+    <div class="menu-section-title">ACCOUNT</div>
+    <button class="menu-item" onclick="openMenuPanel('panel-profile')">
+      <span class="menu-icon">👤</span><span class="menu-label">Profile</span>
+    </button>
+    <button class="menu-item" onclick="openMenuPanel('panel-email')">
+      <span class="menu-icon">✉️</span><span class="menu-label">Change Email</span>
+      <span class="menu-badge warn" id="menu-phone-required" style="display:none">Phone required</span>
+    </button>
+    <div class="menu-divider"></div>
+    <div class="menu-section-title">NOTIFICATIONS</div>
+    <button class="menu-item" onclick="openMenuPanel('panel-notif')">
+      <span class="menu-icon">🔔</span><span class="menu-label">Notification Settings</span>
+    </button>
+    <button class="menu-item" onclick="openMenuPanel('panel-phone')">
+      <span class="menu-icon">📱</span><span class="menu-label">Mobile Number</span>
+      <span class="menu-badge verified" id="menu-phone-badge" style="display:none">✓ Verified</span>
+    </button>
+    <div class="menu-divider"></div>
+    <div class="menu-section-title">HELP</div>
+    <button class="menu-item" onclick="closeMenu();openRules()">
+      <span class="menu-icon">📖</span><span class="menu-label">How to Play</span>
+    </button>
+  </div>
+  <div class="menu-footer">
+    <button class="btn btn-secondary" style="margin:0" onclick="doLogout()">Sign Out</button>
+  </div>
+</div>
+
+<!-- ── Notification settings panel ── -->
+<div class="menu-panel" id="panel-notif">
+  <div class="menu-panel-header">
+    <button class="menu-panel-back" onclick="closeMenuPanel('panel-notif')">←</button>
+    <span class="menu-panel-title">NOTIFICATIONS</span>
+  </div>
+  <div class="menu-panel-body">
+    <p style="font-size:12px;color:rgba(255,255,255,.4);margin-bottom:16px;line-height:1.6">Choose how you want to be notified when it's your turn or a game starts.</p>
+    <div class="notif-channel">
+      <div class="notif-channel-info">
+        <div class="notif-channel-name">Push Notifications</div>
+        <div class="notif-channel-sub">Alerts on this device</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span class="notif-status notif-status-off" id="pn-push-status">Off</span>
+        <label class="toggle"><input type="checkbox" id="pn-push-toggle" onchange="handleNotifToggle(this.checked)" disabled><span class="toggle-slider"></span></label>
+      </div>
+    </div>
+    <div class="notif-channel">
+      <div class="notif-channel-info">
+        <div class="notif-channel-name">Email</div>
+        <div class="notif-channel-sub" id="pn-email-sub">Sent to your email address</div>
+      </div>
+      <label class="toggle"><input type="checkbox" id="pn-email-toggle" onchange="saveNotifPrefs()"><span class="toggle-slider"></span></label>
+    </div>
+    <div class="notif-channel">
+      <div class="notif-channel-info">
+        <div class="notif-channel-name">SMS</div>
+        <div class="notif-channel-sub" id="pn-sms-sub">Requires a verified mobile number</div>
+      </div>
+      <label class="toggle"><input type="checkbox" id="pn-sms-toggle" onchange="saveNotifPrefs()" disabled><span class="toggle-slider"></span></label>
+    </div>
+    <div id="pn-push-browser-row" style="display:none;margin-top:12px">
+      <div style="font-size:12px;color:rgba(255,255,255,.4);margin-bottom:8px" id="pn-push-browser-sub"></div>
+      <button class="notif-btn" id="pn-push-request-btn" onclick="requestNotifPermission()">Enable push</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Phone number panel ── -->
+<div class="menu-panel" id="panel-phone">
+  <div class="menu-panel-header">
+    <button class="menu-panel-back" onclick="closeMenuPanel('panel-phone')">←</button>
+    <span class="menu-panel-title">MOBILE NUMBER</span>
+  </div>
+  <div class="menu-panel-body">
+    <div id="phone-current-section">
+      <p id="phone-current-display" style="font-size:13px;color:rgba(255,255,255,.5);margin-bottom:16px"></p>
+    </div>
+    <div class="error-msg" id="phone-error"></div>
+    <div class="field-group">
+      <label>Mobile Number (with country code)</label>
+      <div class="phone-row">
+        <select class="country-code-select" id="phone-country-code">
+          <option value="+61">🇦🇺 +61</option>
+          <option value="+1">🇺🇸 +1</option>
+          <option value="+44">🇬🇧 +44</option>
+          <option value="+64">🇳🇿 +64</option>
+          <option value="+65">🇸🇬 +65</option>
+          <option value="+81">🇯🇵 +81</option>
+          <option value="+86">🇨🇳 +86</option>
+          <option value="+91">🇮🇳 +91</option>
+          <option value="+49">🇩🇪 +49</option>
+          <option value="+33">🇫🇷 +33</option>
+        </select>
+        <input type="tel" id="phone-number-input" placeholder="412345678" autocomplete="tel" style="flex:1">
+      </div>
+    </div>
+    <button class="btn btn-primary" onclick="sendPhoneOTP()">Send Verification Code</button>
+    <div id="phone-otp-section" style="display:none">
+      <div class="field-group" style="margin-top:12px">
+        <label>6-Digit Code</label>
+        <input type="text" id="phone-otp-input" class="code-input" placeholder="000000" maxlength="6" inputmode="numeric">
+      </div>
+      <button class="btn btn-primary" onclick="verifyPhoneOTP()">Verify</button>
+    </div>
+    <div id="phone-remove-section" style="display:none;margin-top:12px">
+      <button class="btn btn-danger" style="background:rgba(201,64,64,.12);border:1px solid rgba(201,64,64,.3);color:#e08888" onclick="removePhone()">Remove Mobile Number</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Change email panel ── -->
+<div class="menu-panel" id="panel-email">
+  <div class="menu-panel-header">
+    <button class="menu-panel-back" onclick="closeMenuPanel('panel-email')">←</button>
+    <span class="menu-panel-title">CHANGE EMAIL</span>
+  </div>
+  <div class="menu-panel-body">
+    <div id="email-change-locked" style="display:none">
+      <div style="background:rgba(201,162,39,.08);border:1px solid rgba(201,162,39,.2);border-radius:8px;padding:14px;margin-bottom:16px;font-size:13px;color:rgba(255,255,255,.6);line-height:1.6">
+        🔒 A <strong style="color:var(--gold)">verified mobile number</strong> is required to change your email address. Add one in Mobile Number settings first.
+      </div>
+      <button class="btn btn-secondary" onclick="closeMenuPanel('panel-email');openMenuPanel('panel-phone')">Add Mobile Number</button>
+    </div>
+    <div id="email-change-form">
+      <p style="font-size:12px;color:rgba(255,255,255,.4);margin-bottom:16px;line-height:1.6">We'll send a verification code to your new email address to confirm you own it.</p>
+      <div class="error-msg" id="email-change-error"></div>
+      <div class="field-group">
+        <label>New Email Address</label>
+        <input type="email" id="email-change-input" placeholder="new@example.com" autocomplete="email">
+      </div>
+      <button class="btn btn-primary" onclick="requestEmailChange()">Send Verification Code</button>
+      <div id="email-change-otp-section" style="display:none">
+        <div class="field-group" style="margin-top:12px">
+          <label>6-Digit Code (sent to new email)</label>
+          <input type="text" id="email-change-otp" class="code-input" placeholder="000000" maxlength="6" inputmode="numeric">
+        </div>
+        <button class="btn btn-primary" onclick="confirmEmailChange()">Confirm New Email</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Profile panel ── -->
+<div class="menu-panel" id="panel-profile">
+  <div class="menu-panel-header">
+    <button class="menu-panel-back" onclick="closeMenuPanel('panel-profile')">←</button>
+    <span class="menu-panel-title">PROFILE</span>
+  </div>
+  <div class="menu-panel-body">
+    <div style="text-align:center;margin-bottom:24px">
+      <div class="menu-avatar" id="profile-avatar" style="width:60px;height:60px;font-size:24px;margin:0 auto 12px">?</div>
+      <div style="font-size:16px;font-weight:700;color:var(--cream)" id="profile-name">–</div>
+      <div style="font-size:12px;color:rgba(255,255,255,.4);margin-top:4px" id="profile-email">–</div>
+    </div>
+    <div style="background:var(--navy-mid);border-radius:var(--radius);overflow:hidden">
+      <div style="padding:12px 16px;border-bottom:1px solid rgba(255,255,255,.06);display:flex;justify-content:space-between;font-size:13px">
+        <span style="color:rgba(255,255,255,.4)">Email</span>
+        <span id="profile-email-verified" style="font-size:11px"></span>
+      </div>
+      <div style="padding:12px 16px;border-bottom:1px solid rgba(255,255,255,.06);display:flex;justify-content:space-between;font-size:13px">
+        <span style="color:rgba(255,255,255,.4)">Mobile</span>
+        <span id="profile-phone" style="color:var(--cream-dark)">Not set</span>
+      </div>
+      <div style="padding:12px 16px;display:flex;justify-content:space-between;font-size:13px">
+        <span style="color:rgba(255,255,255,.4)">Notifications</span>
+        <span id="profile-notifs" style="color:var(--cream-dark)">–</span>
+      </div>
     </div>
   </div>
 </div>
@@ -1730,6 +1974,262 @@ function showResetError(step, msg) {
   if (el) { el.textContent = msg; el.style.display = 'block'; }
 }
 
+
+
+// ── Menu drawer ────────────────────────────────────────────
+let _profileData = null;
+
+function openMenu() {
+  document.getElementById('menu-overlay').classList.add('open');
+  document.getElementById('menu-drawer').classList.add('open');
+  loadProfileForMenu();
+}
+
+function closeMenu() {
+  document.getElementById('menu-overlay').classList.remove('open');
+  document.getElementById('menu-drawer').classList.remove('open');
+  // Close any open sub-panels
+  document.querySelectorAll('.menu-panel.open').forEach(p => p.classList.remove('open'));
+}
+
+function openMenuPanel(id) {
+  closeMenu();
+  document.getElementById(id).classList.add('open');
+  document.getElementById('menu-overlay').classList.add('open');
+  // Panel-specific init
+  if (id === 'panel-notif') initNotifPanel();
+  if (id === 'panel-phone') initPhonePanel();
+  if (id === 'panel-email') initEmailPanel();
+  if (id === 'panel-profile') initProfilePanel();
+}
+
+function closeMenuPanel(id) {
+  document.getElementById(id).classList.remove('open');
+  document.getElementById('menu-overlay').classList.remove('open');
+}
+
+async function loadProfileForMenu() {
+  try {
+    const res = await fetch('/api/profile');
+    if (!res.ok) return;
+    const data = await res.json();
+    _profileData = data.user;
+    // Update drawer header
+    document.getElementById('menu-avatar').textContent = _profileData.name.charAt(0).toUpperCase();
+    document.getElementById('menu-user-name').textContent = _profileData.name;
+    document.getElementById('menu-user-email').textContent = _profileData.email;
+    // Show/hide phone-required badge on email change
+    const phoneReq = document.getElementById('menu-phone-required');
+    const phoneBadge = document.getElementById('menu-phone-badge');
+    if (_profileData.phoneVerified) {
+      phoneReq.style.display = 'none';
+      phoneBadge.style.display = 'inline-flex';
+    } else {
+      phoneReq.style.display = _profileData.phone ? 'none' : 'inline-flex';
+      phoneBadge.style.display = 'none';
+    }
+  } catch {}
+}
+
+// ── Notification panel (mirrors push panel + adds email/sms) ──
+function initNotifPanel() {
+  if (!_profileData) return;
+  // Sync push toggle
+  const pushToggle = document.getElementById('pn-push-toggle');
+  const pushStatus = document.getElementById('pn-push-status');
+  const masterToggle = document.getElementById('notif-toggle');
+  if (masterToggle) {
+    pushToggle.checked = masterToggle.checked;
+    pushToggle.disabled = masterToggle.disabled;
+    pushStatus.textContent = masterToggle.checked ? 'On' : 'Off';
+    pushStatus.className = 'notif-status ' + (masterToggle.checked ? 'notif-status-ok' : 'notif-status-off');
+  }
+  // Sync browser permission row
+  const browserRow = document.getElementById('notif-browser-row');
+  if (browserRow) {
+    const panelRow = document.getElementById('pn-push-browser-row');
+    const panelSub = document.getElementById('pn-push-browser-sub');
+    const masterSub = document.getElementById('notif-browser-sub');
+    if (browserRow.style.display !== 'none') {
+      panelRow.style.display = 'block';
+      panelSub.textContent = masterSub?.textContent || '';
+    }
+  }
+  // Email toggle
+  const emailToggle = document.getElementById('pn-email-toggle');
+  emailToggle.checked = !!_profileData.notifyEmail;
+  document.getElementById('pn-email-sub').textContent = _profileData.email;
+  // SMS toggle
+  const smsToggle = document.getElementById('pn-sms-toggle');
+  smsToggle.checked = !!_profileData.notifySms;
+  smsToggle.disabled = !_profileData.phoneVerified;
+  document.getElementById('pn-sms-sub').textContent = _profileData.phoneVerified
+    ? (_profileData.phone || 'Verified mobile')
+    : 'Add a verified mobile number first';
+}
+
+async function saveNotifPrefs() {
+  const emailOn = document.getElementById('pn-email-toggle')?.checked || false;
+  const smsOn   = document.getElementById('pn-sms-toggle')?.checked || false;
+  await fetch('/api/profile/notify', {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ notifyEmail: emailOn, notifySms: smsOn }),
+  });
+  if (_profileData) { _profileData.notifyEmail = emailOn; _profileData.notifySms = smsOn; }
+}
+
+// ── Phone panel ───────────────────────────────────────────
+let _pendingPhone = null;
+
+function initPhonePanel() {
+  document.getElementById('phone-error').style.display = 'none';
+  document.getElementById('phone-otp-section').style.display = 'none';
+  document.getElementById('phone-otp-input').value = '';
+  const removeSection = document.getElementById('phone-remove-section');
+  const currentDisplay = document.getElementById('phone-current-display');
+  if (_profileData?.phone) {
+    currentDisplay.textContent = 'Current: ' + _profileData.phone + (_profileData.phoneVerified ? ' ✓' : ' (unverified)');
+    removeSection.style.display = 'block';
+  } else {
+    currentDisplay.textContent = 'No mobile number saved.';
+    removeSection.style.display = 'none';
+  }
+}
+
+async function sendPhoneOTP() {
+  const code = document.getElementById('phone-country-code').value;
+  const num  = document.getElementById('phone-number-input').value.trim().replace(/^0+/, '');
+  const full = code + num;
+  const errEl = document.getElementById('phone-error');
+  errEl.style.display = 'none';
+  if (!num) { errEl.textContent = 'Enter your mobile number.'; errEl.style.display = 'block'; return; }
+  _pendingPhone = full;
+  try {
+    const res = await fetch('/api/profile/phone/send-otp', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ phone: full }),
+    });
+    const data = await res.json();
+    if (!res.ok) { errEl.textContent = data.error; errEl.style.display = 'block'; return; }
+    document.getElementById('phone-otp-section').style.display = 'block';
+    showToast('Code sent to ' + full);
+  } catch { errEl.textContent = 'Connection error'; errEl.style.display = 'block'; }
+}
+
+async function verifyPhoneOTP() {
+  const code = document.getElementById('phone-otp-input').value.trim();
+  const errEl = document.getElementById('phone-error');
+  errEl.style.display = 'none';
+  if (code.length !== 6) { errEl.textContent = 'Enter the 6-digit code.'; errEl.style.display = 'block'; return; }
+  try {
+    const res = await fetch('/api/profile/phone/verify', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ phone: _pendingPhone, code }),
+    });
+    const data = await res.json();
+    if (!res.ok) { errEl.textContent = data.error; errEl.style.display = 'block'; return; }
+    if (_profileData) { _profileData.phone = _pendingPhone; _profileData.phoneVerified = true; }
+    showToast('Mobile number verified!');
+    closeMenuPanel('panel-phone');
+    loadProfileForMenu();
+    // Enable SMS toggle in notif panel if open
+    const smsToggle = document.getElementById('pn-sms-toggle');
+    if (smsToggle) { smsToggle.disabled = false; document.getElementById('pn-sms-sub').textContent = _pendingPhone; }
+  } catch { errEl.textContent = 'Connection error'; errEl.style.display = 'block'; }
+}
+
+async function removePhone() {
+  await fetch('/api/profile/phone', { method:'DELETE' });
+  if (_profileData) { _profileData.phone = null; _profileData.phoneVerified = false; }
+  showToast('Mobile number removed');
+  closeMenuPanel('panel-phone');
+  loadProfileForMenu();
+}
+
+// ── Change email panel ────────────────────────────────────
+let _pendingNewEmail = null;
+
+function initEmailPanel() {
+  document.getElementById('email-change-error').style.display = 'none';
+  document.getElementById('email-change-otp-section').style.display = 'none';
+  document.getElementById('email-change-input').value = '';
+  document.getElementById('email-change-otp').value = '';
+  const locked = document.getElementById('email-change-locked');
+  const form   = document.getElementById('email-change-form');
+  if (_profileData?.phoneVerified) {
+    locked.style.display = 'none';
+    form.style.display = 'block';
+  } else {
+    locked.style.display = 'block';
+    form.style.display = 'none';
+  }
+}
+
+async function requestEmailChange() {
+  const newEmail = document.getElementById('email-change-input').value.trim();
+  const errEl = document.getElementById('email-change-error');
+  errEl.style.display = 'none';
+  if (!newEmail) { errEl.textContent = 'Enter a new email address.'; errEl.style.display = 'block'; return; }
+  _pendingNewEmail = newEmail;
+  try {
+    const res = await fetch('/api/profile/email/request-change', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ newEmail }),
+    });
+    const data = await res.json();
+    if (!res.ok) { errEl.textContent = data.error; errEl.style.display = 'block'; return; }
+    document.getElementById('email-change-otp-section').style.display = 'block';
+    showToast('Verification code sent to ' + newEmail);
+  } catch { errEl.textContent = 'Connection error'; errEl.style.display = 'block'; }
+}
+
+async function confirmEmailChange() {
+  const code = document.getElementById('email-change-otp').value.trim();
+  const errEl = document.getElementById('email-change-error');
+  errEl.style.display = 'none';
+  if (code.length !== 6) { errEl.textContent = 'Enter the 6-digit code.'; errEl.style.display = 'block'; return; }
+  try {
+    const res = await fetch('/api/profile/email/confirm-change', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ newEmail: _pendingNewEmail, code }),
+    });
+    const data = await res.json();
+    if (!res.ok) { errEl.textContent = data.error; errEl.style.display = 'block'; return; }
+    if (_profileData) { _profileData.email = _pendingNewEmail; }
+    currentUser = data.user;
+    document.getElementById('user-name-display').textContent = data.user.name;
+    showToast('Email updated to ' + _pendingNewEmail);
+    closeMenuPanel('panel-email');
+    loadProfileForMenu();
+  } catch { errEl.textContent = 'Connection error'; errEl.style.display = 'block'; }
+}
+
+// ── Profile panel ─────────────────────────────────────────
+function initProfilePanel() {
+  if (!_profileData) return;
+  const init = _profileData.name.charAt(0).toUpperCase();
+  document.getElementById('profile-avatar').textContent = init;
+  document.getElementById('profile-name').textContent = _profileData.name;
+  document.getElementById('profile-email').textContent = _profileData.email;
+  document.getElementById('profile-email-verified').innerHTML = _profileData.emailVerified
+    ? '<span class="verify-badge verified">✓ Verified</span>'
+    : '<span class="verify-badge unverified">Unverified</span>';
+  document.getElementById('profile-phone').textContent = _profileData.phone
+    ? _profileData.phone + (_profileData.phoneVerified ? ' ✓' : ' (unverified)')
+    : 'Not set';
+  const notifParts = [];
+  if (_profileData.notifyEmail) notifParts.push('Email');
+  if (_profileData.notifySms)   notifParts.push('SMS');
+  document.getElementById('profile-notifs').textContent = notifParts.length
+    ? notifParts.join(', ')
+    : 'Push only';
+}
+
+// Close all panels/menu on overlay click
+document.getElementById('menu-overlay').addEventListener('click', () => {
+  document.querySelectorAll('.menu-panel.open').forEach(p => p.classList.remove('open'));
+  closeMenu();
+});
 
 // ── Abandon game ─────────────────────────────────────────────
 function openAbandonModal() {
