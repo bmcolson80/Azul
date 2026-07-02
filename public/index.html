@@ -263,6 +263,102 @@ input#otp-code{letter-spacing:12px;font-size:28px}
 .notif-btn{padding:7px 14px;border-radius:var(--radius-sm);border:1px solid rgba(201,162,39,.3);background:transparent;color:var(--gold);font-family:'Cinzel',serif;font-size:11px;letter-spacing:1px;cursor:pointer;transition:all .2s;white-space:nowrap}
 .notif-btn:active{background:rgba(201,162,39,.1)}
 .notif-btn:disabled{opacity:.4;cursor:not-allowed}
+
+/* ── Desktop two-column game layout ── */
+.game-layout{display:flex;flex-direction:column;min-height:calc(100vh - 48px)}
+.game-left{flex-shrink:0}
+.game-right{flex:1;min-width:0}
+
+@media(min-width:768px){
+  .game-layout{flex-direction:row;align-items:flex-start;height:calc(100vh - 48px);overflow:hidden}
+
+  /* Left column: fixed width, full height, scrollable */
+  .game-left{
+    width:340px;
+    flex-shrink:0;
+    height:100%;
+    overflow-y:auto;
+    border-right:1px solid rgba(255,255,255,.06);
+    display:flex;
+    flex-direction:column;
+  }
+
+  /* Right column: fills remaining space, scrollable */
+  .game-right{
+    flex:1;
+    height:100%;
+    overflow-y:auto;
+    min-width:0;
+  }
+
+  /* Factories: 3 columns on desktop fits nicely in 340px left col */
+  .factories-grid{
+    grid-template-columns:repeat(3,1fr);
+    gap:8px;
+    padding:4px 12px 10px;
+  }
+
+  /* Bigger factories on desktop */
+  .factory{padding:8px}
+
+  /* Wider tiles */
+  .tile{width:32px;height:32px;font-size:16px}
+
+  /* Center pool */
+  .center-pool{margin:0 12px 10px}
+
+  /* Board takes full right column width */
+  .player-board-section{margin:12px 16px 12px}
+
+  /* Opponents section */
+  .opponents-section{margin:0 16px 20px}
+
+  /* Scores bar horizontal scroll on desktop too */
+  .scores-bar{padding:8px 12px}
+
+  /* Action bar: not fixed on desktop, inline at bottom of left col */
+  .action-bar{
+    position:static !important;
+    margin-top:auto;
+    border-top:1px solid rgba(201,162,39,.2);
+    background:var(--navy-light);
+    padding:12px;
+    border-right:none;
+  }
+
+  /* Tabs sit at top of right column */
+  .tabs{position:sticky;top:0;background:var(--navy);z-index:10;border-bottom:1px solid rgba(255,255,255,.06)}
+
+  /* Pattern slots and wall slots slightly larger on desktop */
+  .pattern-slot,.wall-slot{width:30px;height:30px}
+  .floor-cell{width:28px;height:28px}
+
+  /* Bigger board tile */
+  .player-board-section .tile{width:28px;height:28px;font-size:13px}
+
+  /* Section labels */
+  .section-label{padding:10px 12px 4px}
+
+  /* AI thinking bar */
+  .ai-thinking{padding:6px 12px}
+
+  /* Game over banner full width */
+  #game-over-banner{position:sticky;top:0;z-index:101}
+}
+
+@media(min-width:1100px){
+  /* Wider screens: give left column more room for factories */
+  .game-left{width:380px}
+  .factories-grid{grid-template-columns:repeat(3,1fr);gap:10px;padding:4px 14px 12px}
+  .factory{padding:12px}
+  .tile{width:34px;height:34px;font-size:17px}
+}
+
+@media(min-width:1400px){
+  .game-left{width:420px}
+  .factories-grid{grid-template-columns:repeat(3,1fr)}
+}
+
 @media(max-width:360px){.tile{width:24px;height:24px;font-size:11px}.pattern-slot,.wall-slot{width:22px;height:22px}.floor-cell{width:22px;height:22px}.factories-grid{gap:8px}}
 @media(max-width:400px){.user-chip .user-name{display:none}.dh-logo{font-size:15px;letter-spacing:2px}}
 </style>
@@ -450,6 +546,7 @@ input#otp-code{letter-spacing:12px;font-size:28px}
 
 <!-- ═══ GAME ═══ -->
 <div id="game-screen">
+  <!-- Sticky header — full width -->
   <div class="game-header">
     <div class="round-info">Round <span id="hdr-round">1</span></div>
     <span class="current-player-badge" id="hdr-turn">–</span>
@@ -458,25 +555,39 @@ input#otp-code{letter-spacing:12px;font-size:28px}
     <button class="btn-danger-sm" id="abandon-btn" onclick="openAbandonModal()" style="display:none;margin-left:4px">⚠ End</button>
   </div>
   <div id="game-over-banner"></div>
-  <div class="scores-bar" id="scores-bar"></div>
-  <div id="ai-thinking-bar" style="display:none" class="ai-thinking">
-    <span id="ai-thinking-name">AI</span> is thinking
-    <span class="ai-dots"><span></span><span></span><span></span></span>
-  </div>
-  <div class="tabs" id="board-tabs"></div>
-  <div class="section-label">FACTORY DISPLAYS</div>
-  <div class="factories-grid" id="factories-grid"></div>
-  <div class="section-label">CENTER OF TABLE</div>
-  <div class="center-pool" id="center-pool"></div>
-  <div id="board-view"></div>
-  <div id="opponents-view"></div>
-  <div class="action-bar" id="action-bar" style="display:none">
-    <div class="action-hint" id="action-hint">Select a pattern row — or tap Floor to discard</div>
-    <div class="action-btns">
-      <button class="btn btn-secondary" style="flex:1" onclick="cancelSelection()">Cancel</button>
-      <button class="btn btn-secondary" style="flex:1" onclick="sendToFloor()">Floor</button>
-      <button class="btn btn-primary" style="flex:2" id="confirm-btn" onclick="confirmPlacement()" disabled>Place</button>
+
+  <!-- Two-column layout on desktop, single column on mobile -->
+  <div class="game-layout">
+
+    <!-- LEFT COLUMN: scores, factories, centre, action -->
+    <div class="game-left">
+      <div class="scores-bar" id="scores-bar"></div>
+      <div id="ai-thinking-bar" style="display:none" class="ai-thinking">
+        <span id="ai-thinking-name">AI</span> is thinking
+        <span class="ai-dots"><span></span><span></span><span></span></span>
+      </div>
+      <div class="section-label">FACTORY DISPLAYS</div>
+      <div class="factories-grid" id="factories-grid"></div>
+      <div class="section-label">CENTER OF TABLE</div>
+      <div class="center-pool" id="center-pool"></div>
+      <!-- Action bar: fixed on mobile, inline on desktop -->
+      <div class="action-bar" id="action-bar" style="display:none">
+        <div class="action-hint" id="action-hint">Select a pattern row — or tap Floor to discard</div>
+        <div class="action-btns">
+          <button class="btn btn-secondary" style="flex:1" onclick="cancelSelection()">Cancel</button>
+          <button class="btn btn-secondary" style="flex:1" onclick="sendToFloor()">Floor</button>
+          <button class="btn btn-primary" style="flex:2" id="confirm-btn" onclick="confirmPlacement()" disabled>Place</button>
+        </div>
+      </div>
     </div>
+
+    <!-- RIGHT COLUMN: tabs, board, opponents -->
+    <div class="game-right">
+      <div class="tabs" id="board-tabs"></div>
+      <div id="board-view"></div>
+      <div id="opponents-view"></div>
+    </div>
+
   </div>
 </div>
 
