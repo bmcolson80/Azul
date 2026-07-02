@@ -15,7 +15,7 @@ import { initDB, save as saveDB, createUser, getUserByEmail, getUserById,
          createOTP, getValidOTP, consumeOTP, updateUserPassword,
          savePushSubscription, removePushSubscription, setPushEnabled,
          getPushSubscriptions, getUserPushStatus,
-         updateUserEmail, updateUserPhone, setPhoneVerified, setEmailVerified,
+         updateUserEmail, setEmailVerified,
          updateNotifyPrefs, getUsersToNotify } from './db.js';
 import webpush from 'web-push';
 import { Resend } from 'resend';
@@ -24,19 +24,6 @@ const resend = process.env.RESEND_API_KEY
   ? new Resend(process.env.RESEND_API_KEY)
   : null;
 
-// ── Twilio SMS ─────────────────────────────────────────────
-import twilio from 'twilio';
-const twilioClient = (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN)
-  ? twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN)
-  : null;
-const TWILIO_FROM = process.env.TWILIO_PHONE_NUMBER || '';
-
-async function sendSMS(to, body) {
-  if (!twilioClient) { console.log('[DEV] SMS to', to, ':', body); return; }
-  try {
-    await twilioClient.messages.create({ from: TWILIO_FROM, to, body });
-  } catch (err) { console.error('[SMS] Failed:', err.message); }
-}
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT      = process.env.PORT || 3000;
@@ -76,12 +63,6 @@ async function sendEmailNotification(userId, subject, html) {
   } catch (err) { console.error('[email notify] Failed:', err.message); }
 }
 
-async function sendSMSNotification(userId, body) {
-  const user = getUserById(userId);
-  if (!user || !user.notify_sms || !user.phone || !user.phone_verified) return;
-  await sendSMS(user.phone, body);
-}
-
 async function notifyPlayer(userId, excludeUserId, { title, body, roomCode }) {
   if (userId === excludeUserId) return;
   const emailHtml = `<div style="font-family:sans-serif;max-width:400px;margin:0 auto;padding:32px;background:#1a1f3a;color:#f5ecd7;border-radius:12px">
@@ -93,7 +74,6 @@ async function notifyPlayer(userId, excludeUserId, { title, body, roomCode }) {
   await Promise.all([
     sendPushToUser(userId, { title, body, icon:'/icon-192.png', badge:'/badge-72.png', tag:'colmedorno-'+roomCode, data:{ roomCode, url:'/' } }),
     sendEmailNotification(userId, title, emailHtml),
-    sendSMSNotification(userId, `${title} — ${body} colmedorno.up.railway.app`),
   ]);
 }
 
@@ -257,62 +237,24 @@ app.get('/api/profile', requireAuth, (req, res) => {
   res.json({ user: {
     id: user.id, name: user.name, email: user.email,
     emailVerified: !!user.email_verified,
-    phone: user.phone || null,
-    phoneVerified: !!user.phone_verified,
     notifyEmail: !!user.notify_email,
-    notifySms: !!user.notify_sms,
   }});
 });
 
 app.post('/api/profile/notify', requireAuth, (req, res) => {
-  const { notifyEmail, notifySms } = req.body;
-  updateNotifyPrefs(req.user.id, { notifyEmail: !!notifyEmail, notifySms: !!notifySms });
+  const { notifyEmail } = req.body;
+  updateNotifyPrefs(req.user.id, { notifyEmail: !!notifyEmail, notifySms: false });
   res.json({ ok: true });
 });
 
-// ── Phone verification ──────────────────────────────────────
-
-app.post('/api/profile/phone/send-otp', requireAuth, async (req, res) => {
-  const { phone } = req.body;
-  if (!phone?.trim()) return res.status(400).json({ error: 'Phone number required' });
-  // Basic E.164 format check
-  if (!/^\+[1-9]\d{7,14}$/.test(phone.trim()))
-    return res.status(400).json({ error: 'Phone must be in E.164 format, e.g. +61412345678' });
-
-  const code = String(Math.floor(100000 + Math.random() * 900000));
-  const expiresAt = Math.floor(Date.now() / 1000) + 15 * 60;
-  const id = generateId();
-  createOTP({ id, email: phone.trim(), code, expiresAt });
-
-  await sendSMS(phone.trim(), `Your Colmedorno verification code is: ${code}. Valid for 15 minutes.`);
-  res.json({ ok: true });
-});
-
-app.post('/api/profile/phone/verify', requireAuth, async (req, res) => {
-  const { phone, code } = req.body;
-  if (!phone || !code) return res.status(400).json({ error: 'Phone and code required' });
-  const otp = getValidOTP(phone.trim(), code.trim());
-  if (!otp) return res.status(400).json({ error: 'Invalid or expired code.' });
-  consumeOTP(otp.id);
-  updateUserPhone(req.user.id, phone.trim());
-  setPhoneVerified(req.user.id);
-  res.json({ ok: true });
-});
-
-app.delete('/api/profile/phone', requireAuth, (req, res) => {
-  updateUserPhone(req.user.id, null);
-  res.json({ ok: true });
-});
-
-// ── Change email (requires verified phone) ──────────────────
+// ── Change email ──────────────────────────────────────────────
 
 app.post('/api/profile/email/request-change', requireAuth, async (req, res) => {
   const { newEmail } = req.body;
   if (!newEmail?.trim()) return res.status(400).json({ error: 'New email required' });
   const user = getUserById(req.user.id);
   if (!user) return res.status(404).json({ error: 'User not found' });
-  if (!user.phone_verified)
-    return res.status(403).json({ error: 'A verified mobile number is required to change your email address.' });
+
   if (getUserByEmail(newEmail))
     return res.status(409).json({ error: 'That email address is already in use.' });
 

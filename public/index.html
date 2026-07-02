@@ -237,8 +237,6 @@ input#otp-code{letter-spacing:12px;font-size:28px}
 .menu-panel label{font-size:10px;letter-spacing:2px;color:rgba(255,255,255,.4);text-transform:uppercase;margin-bottom:5px;display:block}
 .menu-panel input{font-size:15px;padding:10px 12px}
 .menu-panel .btn{margin-bottom:8px}
-.phone-row{display:flex;gap:8px}
-.country-code-select{background:var(--navy);border:1px solid rgba(255,255,255,.15);border-radius:var(--radius-sm);color:var(--cream);font-family:'Lato',sans-serif;font-size:15px;padding:10px 8px;outline:none;width:100px;flex-shrink:0}
 .verify-badge{display:inline-flex;align-items:center;gap:4px;font-size:11px;padding:3px 8px;border-radius:10px;margin-left:8px}
 .verify-badge.verified{background:rgba(78,200,100,.15);color:#4ec864;border:1px solid rgba(78,200,100,.25)}
 .verify-badge.unverified{background:rgba(201,162,39,.12);color:var(--gold);border:1px solid rgba(201,162,39,.25)}
@@ -810,17 +808,13 @@ input#otp-code{letter-spacing:12px;font-size:28px}
     </button>
     <button class="menu-item" onclick="openMenuPanel('panel-email')">
       <span class="menu-icon">✉️</span><span class="menu-label">Change Email</span>
-      <span class="menu-badge warn" id="menu-phone-required" style="display:none">Phone required</span>
     </button>
     <div class="menu-divider"></div>
     <div class="menu-section-title">NOTIFICATIONS</div>
     <button class="menu-item" onclick="openMenuPanel('panel-notif')">
       <span class="menu-icon">🔔</span><span class="menu-label">Notification Settings</span>
     </button>
-    <button class="menu-item" onclick="openMenuPanel('panel-phone')">
-      <span class="menu-icon">📱</span><span class="menu-label">Mobile Number</span>
-      <span class="menu-badge verified" id="menu-phone-badge" style="display:none">✓ Verified</span>
-    </button>
+
     <div class="menu-divider"></div>
     <div class="menu-section-title">HELP</div>
     <button class="menu-item" onclick="closeMenu();openRules()">
@@ -857,59 +851,10 @@ input#otp-code{letter-spacing:12px;font-size:28px}
       </div>
       <label class="toggle"><input type="checkbox" id="pn-email-toggle" onchange="saveNotifPrefs()"><span class="toggle-slider"></span></label>
     </div>
-    <div class="notif-channel">
-      <div class="notif-channel-info">
-        <div class="notif-channel-name">SMS</div>
-        <div class="notif-channel-sub" id="pn-sms-sub">Requires a verified mobile number</div>
-      </div>
-      <label class="toggle"><input type="checkbox" id="pn-sms-toggle" onchange="saveNotifPrefs()" disabled><span class="toggle-slider"></span></label>
-    </div>
+
     <div id="pn-push-browser-row" style="display:none;margin-top:12px">
       <div style="font-size:12px;color:rgba(255,255,255,.4);margin-bottom:8px" id="pn-push-browser-sub"></div>
       <button class="notif-btn" id="pn-push-request-btn" onclick="requestNotifPermission()">Enable push</button>
-    </div>
-  </div>
-</div>
-
-<!-- ── Phone number panel ── -->
-<div class="menu-panel" id="panel-phone">
-  <div class="menu-panel-header">
-    <button class="menu-panel-back" onclick="closeMenuPanel('panel-phone')">←</button>
-    <span class="menu-panel-title">MOBILE NUMBER</span>
-  </div>
-  <div class="menu-panel-body">
-    <div id="phone-current-section">
-      <p id="phone-current-display" style="font-size:13px;color:rgba(255,255,255,.5);margin-bottom:16px"></p>
-    </div>
-    <div class="error-msg" id="phone-error"></div>
-    <div class="field-group">
-      <label>Mobile Number (with country code)</label>
-      <div class="phone-row">
-        <select class="country-code-select" id="phone-country-code">
-          <option value="+61">🇦🇺 +61</option>
-          <option value="+1">🇺🇸 +1</option>
-          <option value="+44">🇬🇧 +44</option>
-          <option value="+64">🇳🇿 +64</option>
-          <option value="+65">🇸🇬 +65</option>
-          <option value="+81">🇯🇵 +81</option>
-          <option value="+86">🇨🇳 +86</option>
-          <option value="+91">🇮🇳 +91</option>
-          <option value="+49">🇩🇪 +49</option>
-          <option value="+33">🇫🇷 +33</option>
-        </select>
-        <input type="tel" id="phone-number-input" placeholder="412345678" autocomplete="tel" style="flex:1">
-      </div>
-    </div>
-    <button class="btn btn-primary" onclick="sendPhoneOTP()">Send Verification Code</button>
-    <div id="phone-otp-section" style="display:none">
-      <div class="field-group" style="margin-top:12px">
-        <label>6-Digit Code</label>
-        <input type="text" id="phone-otp-input" class="code-input" placeholder="000000" maxlength="6" inputmode="numeric">
-      </div>
-      <button class="btn btn-primary" onclick="verifyPhoneOTP()">Verify</button>
-    </div>
-    <div id="phone-remove-section" style="display:none;margin-top:12px">
-      <button class="btn btn-danger" style="background:rgba(201,64,64,.12);border:1px solid rgba(201,64,64,.3);color:#e08888" onclick="removePhone()">Remove Mobile Number</button>
     </div>
   </div>
 </div>
@@ -921,12 +866,6 @@ input#otp-code{letter-spacing:12px;font-size:28px}
     <span class="menu-panel-title">CHANGE EMAIL</span>
   </div>
   <div class="menu-panel-body">
-    <div id="email-change-locked" style="display:none">
-      <div style="background:rgba(201,162,39,.08);border:1px solid rgba(201,162,39,.2);border-radius:8px;padding:14px;margin-bottom:16px;font-size:13px;color:rgba(255,255,255,.6);line-height:1.6">
-        🔒 A <strong style="color:var(--gold)">verified mobile number</strong> is required to change your email address. Add one in Mobile Number settings first.
-      </div>
-      <button class="btn btn-secondary" onclick="closeMenuPanel('panel-email');openMenuPanel('panel-phone')">Add Mobile Number</button>
-    </div>
     <div id="email-change-form">
       <p style="font-size:12px;color:rgba(255,255,255,.4);margin-bottom:16px;line-height:1.6">We'll send a verification code to your new email address to confirm you own it.</p>
       <div class="error-msg" id="email-change-error"></div>
@@ -962,10 +901,6 @@ input#otp-code{letter-spacing:12px;font-size:28px}
       <div style="padding:12px 16px;border-bottom:1px solid rgba(255,255,255,.06);display:flex;justify-content:space-between;font-size:13px">
         <span style="color:rgba(255,255,255,.4)">Email</span>
         <span id="profile-email-verified" style="font-size:11px"></span>
-      </div>
-      <div style="padding:12px 16px;border-bottom:1px solid rgba(255,255,255,.06);display:flex;justify-content:space-between;font-size:13px">
-        <span style="color:rgba(255,255,255,.4)">Mobile</span>
-        <span id="profile-phone" style="color:var(--cream-dark)">Not set</span>
       </div>
       <div style="padding:12px 16px;display:flex;justify-content:space-between;font-size:13px">
         <span style="color:rgba(255,255,255,.4)">Notifications</span>
@@ -1998,7 +1933,7 @@ function openMenuPanel(id) {
   document.getElementById('menu-overlay').classList.add('open');
   // Panel-specific init
   if (id === 'panel-notif') initNotifPanel();
-  if (id === 'panel-phone') initPhonePanel();
+
   if (id === 'panel-email') initEmailPanel();
   if (id === 'panel-profile') initProfilePanel();
 }
@@ -2018,20 +1953,11 @@ async function loadProfileForMenu() {
     document.getElementById('menu-avatar').textContent = _profileData.name.charAt(0).toUpperCase();
     document.getElementById('menu-user-name').textContent = _profileData.name;
     document.getElementById('menu-user-email').textContent = _profileData.email;
-    // Show/hide phone-required badge on email change
-    const phoneReq = document.getElementById('menu-phone-required');
-    const phoneBadge = document.getElementById('menu-phone-badge');
-    if (_profileData.phoneVerified) {
-      phoneReq.style.display = 'none';
-      phoneBadge.style.display = 'inline-flex';
-    } else {
-      phoneReq.style.display = _profileData.phone ? 'none' : 'inline-flex';
-      phoneBadge.style.display = 'none';
-    }
+
   } catch {}
 }
 
-// ── Notification panel (mirrors push panel + adds email/sms) ──
+// ── Notification panel ──────────────────────────────────────────
 function initNotifPanel() {
   if (!_profileData) return;
   // Sync push toggle
@@ -2059,91 +1985,16 @@ function initNotifPanel() {
   const emailToggle = document.getElementById('pn-email-toggle');
   emailToggle.checked = !!_profileData.notifyEmail;
   document.getElementById('pn-email-sub').textContent = _profileData.email;
-  // SMS toggle
-  const smsToggle = document.getElementById('pn-sms-toggle');
-  smsToggle.checked = !!_profileData.notifySms;
-  smsToggle.disabled = !_profileData.phoneVerified;
-  document.getElementById('pn-sms-sub').textContent = _profileData.phoneVerified
-    ? (_profileData.phone || 'Verified mobile')
-    : 'Add a verified mobile number first';
+
 }
 
 async function saveNotifPrefs() {
   const emailOn = document.getElementById('pn-email-toggle')?.checked || false;
-  const smsOn   = document.getElementById('pn-sms-toggle')?.checked || false;
   await fetch('/api/profile/notify', {
     method: 'POST', headers: {'Content-Type':'application/json'},
-    body: JSON.stringify({ notifyEmail: emailOn, notifySms: smsOn }),
+    body: JSON.stringify({ notifyEmail: emailOn }),
   });
-  if (_profileData) { _profileData.notifyEmail = emailOn; _profileData.notifySms = smsOn; }
-}
 
-// ── Phone panel ───────────────────────────────────────────
-let _pendingPhone = null;
-
-function initPhonePanel() {
-  document.getElementById('phone-error').style.display = 'none';
-  document.getElementById('phone-otp-section').style.display = 'none';
-  document.getElementById('phone-otp-input').value = '';
-  const removeSection = document.getElementById('phone-remove-section');
-  const currentDisplay = document.getElementById('phone-current-display');
-  if (_profileData?.phone) {
-    currentDisplay.textContent = 'Current: ' + _profileData.phone + (_profileData.phoneVerified ? ' ✓' : ' (unverified)');
-    removeSection.style.display = 'block';
-  } else {
-    currentDisplay.textContent = 'No mobile number saved.';
-    removeSection.style.display = 'none';
-  }
-}
-
-async function sendPhoneOTP() {
-  const code = document.getElementById('phone-country-code').value;
-  const num  = document.getElementById('phone-number-input').value.trim().replace(/^0+/, '');
-  const full = code + num;
-  const errEl = document.getElementById('phone-error');
-  errEl.style.display = 'none';
-  if (!num) { errEl.textContent = 'Enter your mobile number.'; errEl.style.display = 'block'; return; }
-  _pendingPhone = full;
-  try {
-    const res = await fetch('/api/profile/phone/send-otp', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ phone: full }),
-    });
-    const data = await res.json();
-    if (!res.ok) { errEl.textContent = data.error; errEl.style.display = 'block'; return; }
-    document.getElementById('phone-otp-section').style.display = 'block';
-    showToast('Code sent to ' + full);
-  } catch { errEl.textContent = 'Connection error'; errEl.style.display = 'block'; }
-}
-
-async function verifyPhoneOTP() {
-  const code = document.getElementById('phone-otp-input').value.trim();
-  const errEl = document.getElementById('phone-error');
-  errEl.style.display = 'none';
-  if (code.length !== 6) { errEl.textContent = 'Enter the 6-digit code.'; errEl.style.display = 'block'; return; }
-  try {
-    const res = await fetch('/api/profile/phone/verify', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ phone: _pendingPhone, code }),
-    });
-    const data = await res.json();
-    if (!res.ok) { errEl.textContent = data.error; errEl.style.display = 'block'; return; }
-    if (_profileData) { _profileData.phone = _pendingPhone; _profileData.phoneVerified = true; }
-    showToast('Mobile number verified!');
-    closeMenuPanel('panel-phone');
-    loadProfileForMenu();
-    // Enable SMS toggle in notif panel if open
-    const smsToggle = document.getElementById('pn-sms-toggle');
-    if (smsToggle) { smsToggle.disabled = false; document.getElementById('pn-sms-sub').textContent = _pendingPhone; }
-  } catch { errEl.textContent = 'Connection error'; errEl.style.display = 'block'; }
-}
-
-async function removePhone() {
-  await fetch('/api/profile/phone', { method:'DELETE' });
-  if (_profileData) { _profileData.phone = null; _profileData.phoneVerified = false; }
-  showToast('Mobile number removed');
-  closeMenuPanel('panel-phone');
-  loadProfileForMenu();
 }
 
 // ── Change email panel ────────────────────────────────────
@@ -2154,15 +2005,7 @@ function initEmailPanel() {
   document.getElementById('email-change-otp-section').style.display = 'none';
   document.getElementById('email-change-input').value = '';
   document.getElementById('email-change-otp').value = '';
-  const locked = document.getElementById('email-change-locked');
-  const form   = document.getElementById('email-change-form');
-  if (_profileData?.phoneVerified) {
-    locked.style.display = 'none';
-    form.style.display = 'block';
-  } else {
-    locked.style.display = 'block';
-    form.style.display = 'none';
-  }
+
 }
 
 async function requestEmailChange() {
@@ -2214,12 +2057,10 @@ function initProfilePanel() {
   document.getElementById('profile-email-verified').innerHTML = _profileData.emailVerified
     ? '<span class="verify-badge verified">✓ Verified</span>'
     : '<span class="verify-badge unverified">Unverified</span>';
-  document.getElementById('profile-phone').textContent = _profileData.phone
-    ? _profileData.phone + (_profileData.phoneVerified ? ' ✓' : ' (unverified)')
-    : 'Not set';
+
   const notifParts = [];
   if (_profileData.notifyEmail) notifParts.push('Email');
-  if (_profileData.notifySms)   notifParts.push('SMS');
+
   document.getElementById('profile-notifs').textContent = notifParts.length
     ? notifParts.join(', ')
     : 'Push only';

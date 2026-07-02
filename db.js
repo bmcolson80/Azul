@@ -32,20 +32,14 @@ export async function initDB() {
       name                TEXT NOT NULL,
       password            TEXT NOT NULL,
       email_verified      INTEGER NOT NULL DEFAULT 0,
-      phone               TEXT,
-      phone_verified      INTEGER NOT NULL DEFAULT 0,
       notify_email        INTEGER NOT NULL DEFAULT 0,
-      notify_sms          INTEGER NOT NULL DEFAULT 0,
       created             INTEGER DEFAULT (strftime('%s','now'))
     )
   `);
   
   // Migrate existing users table — add new columns if missing
   try { db.run("ALTER TABLE users ADD COLUMN email_verified INTEGER NOT NULL DEFAULT 0"); } catch {}
-  try { db.run("ALTER TABLE users ADD COLUMN phone TEXT"); } catch {}
-  try { db.run("ALTER TABLE users ADD COLUMN phone_verified INTEGER NOT NULL DEFAULT 0"); } catch {}
   try { db.run("ALTER TABLE users ADD COLUMN notify_email INTEGER NOT NULL DEFAULT 0"); } catch {}
-  try { db.run("ALTER TABLE users ADD COLUMN notify_sms INTEGER NOT NULL DEFAULT 0"); } catch {}
 
   db.run(`
     CREATE TABLE IF NOT EXISTS games (
@@ -199,31 +193,21 @@ export function updateUserEmail(userId, newEmail) {
   save();
 }
 
-export function updateUserPhone(userId, phone) {
-  db.run("UPDATE users SET phone=?, phone_verified=0 WHERE id=?", [phone, userId]);
-  save();
-}
-
-export function setPhoneVerified(userId) {
-  db.run("UPDATE users SET phone_verified=1 WHERE id=?", [userId]);
-  save();
-}
-
 export function setEmailVerified(userId) {
   db.run("UPDATE users SET email_verified=1 WHERE id=?", [userId]);
   save();
 }
 
-export function updateNotifyPrefs(userId, { notifyEmail, notifySms }) {
-  db.run("UPDATE users SET notify_email=?, notify_sms=? WHERE id=?",
-    [notifyEmail ? 1 : 0, notifySms ? 1 : 0, userId]);
+export function updateNotifyPrefs(userId, { notifyEmail }) {
+  db.run("UPDATE users SET notify_email=? WHERE id=?",
+    [notifyEmail ? 1 : 0, userId]);
   save();
 }
 
 export function getUsersToNotify(excludeUserId) {
-  // Returns users who have email or SMS notifications enabled
+  // Returns users who have email notifications enabled
   const res = db.exec(
-    "SELECT * FROM users WHERE id != ? AND (notify_email=1 OR notify_sms=1)",
+    "SELECT * FROM users WHERE id != ? AND notify_email=1",
     [excludeUserId]
   );
   if (!res.length) return [];
