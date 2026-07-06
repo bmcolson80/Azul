@@ -1,7 +1,7 @@
 {
-  "name": "colmedorno",
+  "name": "azul",
   "version": "1.0.0",
-  "description": "Colmedorno - multiplayer tile game",
+  "description": "Azul - multiplayer tile game",
   "main": "server.js",
   "type": "module",
   "scripts": {
