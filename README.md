@@ -1,4 +1,4 @@
-# 🎮 Colmedorno
+# 🎮 Azul
 
 A real-time multiplayer tile game built with Node.js + WebSockets.
 
@@ -9,7 +9,7 @@ A real-time multiplayer tile game built with Node.js + WebSockets.
 ### 1. Install dependencies
 
 ```bash
-cd colmedorno
+cd azul
 npm install
 ```
 
@@ -21,7 +21,7 @@ npm start
 
 You'll see:
 ```
-🎮 Colmedorno server running → http://localhost:3000
+🎮 Azul server running → http://localhost:3000
 ```
 
 ### 3. Play on your local network
@@ -53,12 +53,12 @@ Pick one of these free options:
    ```bash
    git init
    git add .
-   git commit -m "Colmedorno"
-   gh repo create colmedorno --public --push
+   git commit -m "Azul"
+   gh repo create azul --public --push
    ```
 4. In Railway, select your repo
 5. Railway auto-detects Node.js and runs `npm start`
-6. Click **"Generate Domain"** to get a public URL like `colmedorno.railway.app`
+6. Click **"Generate Domain"** to get a public URL like `azul.railway.app`
 7. Share that URL — anyone worldwide can join!
 
 > Railway gives you 500 free hours/month, more than enough for game nights.
@@ -75,7 +75,7 @@ Pick one of these free options:
    - **Start Command:** `npm start`
    - **Instance Type:** Free
 5. Click **"Create Web Service"**
-6. You'll get a URL like `colmedorno.onrender.com`
+6. You'll get a URL like `azul.onrender.com`
 
 > ⚠️ Render's free tier "sleeps" after 15 mins of inactivity. The first player to connect may wait ~30s for it to wake up.
 
@@ -130,7 +130,7 @@ Players' Phones
 ## Project Structure
 
 ```
-colmedorno/
+azul/
 ├── server.js          ← WebSocket + HTTP server (all game logic)
 ├── package.json
 ├── README.md

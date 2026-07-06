@@ -1,9 +1,9 @@
 /**
- * Colmedorno — Service Worker
+ * Azul — Service Worker
  * Handles push notifications when the app is in the background or closed.
  */
 
-const CACHE_NAME = 'colmedorno-v1';
+const CACHE_NAME = 'azul-v1';
 
 // ── Push event ─────────────────────────────────────────────
 self.addEventListener('push', (event) => {
@@ -11,15 +11,15 @@ self.addEventListener('push', (event) => {
   try {
     data = event.data ? event.data.json() : {};
   } catch {
-    data = { title: 'Colmedorno', body: event.data?.text() || 'You have a new notification' };
+    data = { title: 'Azul', body: event.data?.text() || 'You have a new notification' };
   }
 
-  const title   = data.title || 'Colmedorno';
+  const title   = data.title || 'Azul';
   const options = {
     body:    data.body    || "It's your turn!",
     icon:    data.icon    || '/icon-192.png',
     badge:   data.badge   || '/badge-72.png',
-    tag:     data.tag     || 'colmedorno',
+    tag:     data.tag     || 'azul',
     data:    data.data    || {},
     vibrate: [200, 100, 200],
     requireInteraction: false,

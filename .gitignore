@@ -2,4 +2,3 @@ node_modules/
 .env
 *.log
 azul.db
-colmedorno.db

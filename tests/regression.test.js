@@ -1,5 +1,5 @@
 /**
- * COLMEDORNO — Full Regression Test Suite
+ * AZUL — Full Regression Test Suite
  * Covers: auth, lobby, game flow, AI, rejoin, abandon, persistence, edge cases
  */
 import { describe, test, before, after, beforeEach } from 'node:test';

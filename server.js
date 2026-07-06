@@ -1,5 +1,5 @@
 /**
- * COLMEDORNO — Server with Auth, Persistence, and AI Players
+ * AZUL — Server with Auth, Persistence, and AI Players
  */
 
 import express        from 'express';
@@ -35,12 +35,12 @@ process.on('uncaughtException', (err) => {
 process.on('unhandledRejection', (reason) => {
   console.error('[UNHANDLED REJECTION]', reason);
 });
-const JWT_SECRET = process.env.JWT_SECRET || 'colmedorno-secret-change-in-production';
+const JWT_SECRET = process.env.JWT_SECRET || 'azul-secret-change-in-production';
 
 // ── Web Push / VAPID ───────────────────────────────────────
 const VAPID_PUBLIC  = process.env.VAPID_PUBLIC_KEY  || '';
 const VAPID_PRIVATE = process.env.VAPID_PRIVATE_KEY || '';
-const VAPID_EMAIL   = process.env.VAPID_EMAIL || 'mailto:admin@colmedorno.app';
+const VAPID_EMAIL   = process.env.VAPID_EMAIL || 'mailto:admin@azul.app';
 
 if (VAPID_PUBLIC && VAPID_PRIVATE) {
   webpush.setVapidDetails(VAPID_EMAIL, VAPID_PUBLIC, VAPID_PRIVATE);
@@ -55,7 +55,7 @@ async function sendEmailNotification(userId, subject, html) {
   if (!user || !user.notify_email) return;
   try {
     await resend.emails.send({
-      from: 'Colmedorno <noreply@' + (process.env.EMAIL_DOMAIN || 'colmedorno.app') + '>',
+      from: 'Azul <noreply@' + (process.env.EMAIL_DOMAIN || 'azul.app') + '>',
       to: user.email,
       subject,
       html,
@@ -66,13 +66,13 @@ async function sendEmailNotification(userId, subject, html) {
 async function notifyPlayer(userId, excludeUserId, { title, body, roomCode }) {
   if (userId === excludeUserId) return;
   const emailHtml = `<div style="font-family:sans-serif;max-width:400px;margin:0 auto;padding:32px;background:#1a1f3a;color:#f5ecd7;border-radius:12px">
-    <h1 style="font-family:serif;color:#c9a227;letter-spacing:4px;margin:0 0 8px">COLMEDORNO</h1>
+    <h1 style="font-family:serif;color:#c9a227;letter-spacing:4px;margin:0 0 8px">AZUL</h1>
     <p style="margin:0 0 16px;font-size:16px">${title}</p>
     <p style="color:rgba(245,236,215,0.6);margin:0 0 24px">${body}</p>
-    <a href="${process.env.APP_URL || 'https://colmedorno.up.railway.app'}" style="background:#c9a227;color:#1a1f3a;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:700;font-family:serif">Open Game →</a>
+    <a href="${process.env.APP_URL || 'https://azul.up.railway.app'}" style="background:#c9a227;color:#1a1f3a;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:700;font-family:serif">Open Game →</a>
   </div>`;
   await Promise.all([
-    sendPushToUser(userId, { title, body, icon:'/icon-192.png', badge:'/badge-72.png', tag:'colmedorno-'+roomCode, data:{ roomCode, url:'/' } }),
+    sendPushToUser(userId, { title, body, icon:'/icon-192.png', badge:'/badge-72.png', tag:'azul-'+roomCode, data:{ roomCode, url:'/' } }),
     sendEmailNotification(userId, title, emailHtml),
   ]);
 }
@@ -129,7 +129,7 @@ app.get('/health', (_, res) => res.json({ ok:true, rooms:rooms.size }));
 
 // ── Auth middleware ────────────────────────────────────────
 function requireAuth(req, res, next) {
-  const token = req.cookies?.colmedorno_token || req.headers.authorization?.split(' ')[1];
+  const token = req.cookies?.azul_token || req.headers.authorization?.split(' ')[1];
   if (!token) return res.status(401).json({ error: 'Not authenticated' });
   try {
     req.user = jwt.verify(token, JWT_SECRET);
@@ -156,7 +156,7 @@ app.post('/api/register', async (req, res) => {
   createUser({ id, email, name, password: hash });
 
   const token = jwt.sign({ id, email, name }, JWT_SECRET, { expiresIn: '30d' });
-  res.cookie('colmedorno_token', token, { httpOnly:true, sameSite:'lax', maxAge:30*24*60*60*1000 });
+  res.cookie('azul_token', token, { httpOnly:true, sameSite:'lax', maxAge:30*24*60*60*1000 });
   res.json({ ok:true, user:{ id, email, name } });
 });
 
@@ -169,12 +169,12 @@ app.post('/api/login', async (req, res) => {
   if (!valid) return res.status(401).json({ error: 'Incorrect password' });
 
   const token = jwt.sign({ id:user.id, email:user.email, name:user.name }, JWT_SECRET, { expiresIn:'30d' });
-  res.cookie('colmedorno_token', token, { httpOnly:true, sameSite:'lax', maxAge:30*24*60*60*1000 });
+  res.cookie('azul_token', token, { httpOnly:true, sameSite:'lax', maxAge:30*24*60*60*1000 });
   res.json({ ok:true, user:{ id:user.id, email:user.email, name:user.name } });
 });
 
 app.post('/api/logout', (_, res) => {
-  res.clearCookie('colmedorno_token');
+  res.clearCookie('azul_token');
   res.json({ ok:true });
 });
 
@@ -265,11 +265,11 @@ app.post('/api/profile/email/request-change', requireAuth, async (req, res) => {
 
   if (resend) {
     await resend.emails.send({
-      from: 'Colmedorno <noreply@' + (process.env.EMAIL_DOMAIN || 'colmedorno.app') + '>',
+      from: 'Azul <noreply@' + (process.env.EMAIL_DOMAIN || 'azul.app') + '>',
       to: newEmail.trim(),
       subject: 'Verify your new email address',
       html: `<div style="font-family:sans-serif;padding:32px;background:#1a1f3a;color:#f5ecd7;border-radius:12px;max-width:400px;margin:0 auto">
-        <h1 style="color:#c9a227;font-family:serif;letter-spacing:4px">COLMEDORNO</h1>
+        <h1 style="color:#c9a227;font-family:serif;letter-spacing:4px">AZUL</h1>
         <p>Your email change verification code is:</p>
         <div style="background:#252c50;border:2px dashed #c9a227;border-radius:8px;padding:20px;text-align:center;margin:16px 0">
           <span style="font-family:monospace;font-size:36px;font-weight:700;letter-spacing:12px;color:#c9a227">${code}</span>
@@ -316,12 +316,12 @@ app.post('/api/forgot-password', async (req, res) => {
   if (resend) {
     try {
       await resend.emails.send({
-        from:    'Colmedorno <noreply@' + (process.env.EMAIL_DOMAIN || 'azul.game') + '>',
+        from:    'Azul <noreply@' + (process.env.EMAIL_DOMAIN || 'azul.game') + '>',
         to:      user.email,
-        subject: 'Your Colmedorno password reset code',
+        subject: 'Your Azul password reset code',
         html: `
           <div style="font-family:sans-serif;max-width:400px;margin:0 auto;padding:32px;background:#1a1f3a;color:#f5ecd7;border-radius:12px">
-            <h1 style="font-family:serif;color:#c9a227;letter-spacing:4px;margin:0 0 8px">COLMEDORNO</h1>
+            <h1 style="font-family:serif;color:#c9a227;letter-spacing:4px;margin:0 0 8px">AZUL</h1>
             <p style="color:rgba(245,236,215,0.6);font-size:13px;margin:0 0 32px">DIGITAL EDITION</p>
             <p style="margin:0 0 16px">Your password reset code is:</p>
             <div style="background:#252c50;border:2px dashed #c9a227;border-radius:8px;padding:20px;text-align:center;margin:0 0 24px">
@@ -384,7 +384,7 @@ app.post('/api/reset-password', async (req, res) => {
   // Auto-sign them in
   const user  = getUserByEmail(payload.email);
   const token = jwt.sign({ id:user.id, email:user.email, name:user.name }, JWT_SECRET, { expiresIn:'30d' });
-  res.cookie('colmedorno_token', token, { httpOnly:true, sameSite:'lax', maxAge:30*24*60*60*1000 });
+  res.cookie('azul_token', token, { httpOnly:true, sameSite:'lax', maxAge:30*24*60*60*1000 });
   res.json({ ok:true, user:{ id:user.id, email:user.email, name:user.name } });
 });
 
@@ -397,7 +397,7 @@ wss.on('connection', (ws, req) => {
   // Try to identify user from cookie on initial connection
   let userId = null;
   const cookieHeader = req.headers.cookie || '';
-  const match = cookieHeader.match(/colmedorno_token=([^;]+)/);
+  const match = cookieHeader.match(/azul_token=([^;]+)/);
   if (match) {
     try { userId = jwt.verify(match[1], JWT_SECRET).id; } catch {}
   }
@@ -413,7 +413,7 @@ wss.on('connection', (ws, req) => {
 
 // Boot DB then start server
 initDB().then(() => {
-  server.listen(PORT, () => console.log(`🎮 Colmedorno server → http://localhost:${PORT}`));
+  server.listen(PORT, () => console.log(`🎮 Azul server → http://localhost:${PORT}`));
 });
 
 // ── WS message router ──────────────────────────────────────
@@ -563,7 +563,7 @@ function onStartGame(ws, userId) {
   room.players.forEach(p => {
     if (!p.isAI && p.userId) {
       notifyPlayer(p.userId, meta.userId, {
-        title: 'Colmedorno game started!',
+        title: 'Azul game started!',
         body: 'A game you are in has started — your move is coming up',
         roomCode: meta.roomCode,
       });
@@ -622,7 +622,7 @@ function onPickTiles(ws, payload) {
     const nextPlayer = gs.players[gs.currentPlayer];
     if (nextPlayer && !nextPlayer.isAI && nextPlayer.userId) {
       notifyPlayer(nextPlayer.userId, meta.userId, {
-        title: 'Your turn in Colmedorno!',
+        title: 'Your turn in Azul!',
         body: `Round ${gs.round} — make your move`,
         roomCode: meta.roomCode,
       });
