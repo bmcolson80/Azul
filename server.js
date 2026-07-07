@@ -10,11 +10,11 @@ import cookieParser   from 'cookie-parser';
 import bcrypt         from 'bcryptjs';
 import jwt            from 'jsonwebtoken';
 import { fileURLToPath } from 'url';
-import { initDB, save as saveDB, createUser, getUserByEmail, getUserById,
-         saveGame, getGameByCode, getGamesForUser, linkPlayerToGame, markGameEnded,
+import { initDB, save as saveDB, createUser, getUserByEmail, getUserById, getAllUsers,
+         saveGame, getGameByCode, getGamesForUser, getAllStartedGames, linkPlayerToGame, markGameEnded,
          createOTP, getValidOTP, consumeOTP, updateUserPassword,
          savePushSubscription, removePushSubscription, setPushEnabled,
-         getPushSubscriptions, getUserPushStatus,
+         getPushSubscriptions, getUserPushStatus, getPushEnabledUserIds,
          updateUserEmail, setEmailVerified,
          updateNotifyPrefs, getUsersToNotify } from './db.js';
 import webpush from 'web-push';
@@ -35,7 +35,8 @@ process.on('uncaughtException', (err) => {
 process.on('unhandledRejection', (reason) => {
   console.error('[UNHANDLED REJECTION]', reason);
 });
-const JWT_SECRET = process.env.JWT_SECRET || 'azul-secret-change-in-production';
+const JWT_SECRET  = process.env.JWT_SECRET || 'azul-secret-change-in-production';
+const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || 'bmcolson80@gmail.com').toLowerCase();
 
 // ── Web Push / VAPID ───────────────────────────────────────
 const VAPID_PUBLIC  = process.env.VAPID_PUBLIC_KEY  || '';
@@ -139,6 +140,12 @@ function requireAuth(req, res, next) {
   }
 }
 
+function requireAdmin(req, res, next) {
+  if (req.user?.email?.toLowerCase() !== ADMIN_EMAIL)
+    return res.status(403).json({ error: 'Forbidden' });
+  next();
+}
+
 function generateId() { return Math.random().toString(36).substr(2,9); }
 
 // ── Auth routes ────────────────────────────────────────────
@@ -181,7 +188,10 @@ app.post('/api/logout', (_, res) => {
 app.get('/api/me', requireAuth, (req, res) => {
   const user = getUserById(req.user.id);
   if (!user) return res.status(404).json({ error: 'User not found' });
-  res.json({ user:{ id:user.id, email:user.email, name:user.name } });
+  res.json({
+    user: { id:user.id, email:user.email, name:user.name },
+    isAdmin: user.email.toLowerCase() === ADMIN_EMAIL,
+  });
 });
 
 app.get('/api/my-games', requireAuth, (req, res) => {
@@ -193,6 +203,81 @@ app.get('/api/my-games', requireAuth, (req, res) => {
     players:    g.players,
     updatedAt:  g.updated,
   }))});
+});
+
+// ── Admin routes ────────────────────────────────────────────
+// The HTML shell itself has no sensitive data — access control happens
+// at the /api/admin/* endpoints below, which the page calls client-side.
+app.get('/admin', (_, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'admin.html'));
+});
+
+app.get('/api/admin/overview', requireAuth, requireAdmin, (_, res) => {
+  const users        = getAllUsers();
+  const games        = getAllStartedGames();
+  const pushEnabled  = getPushEnabledUserIds();
+
+  res.json({
+    totalUsers:        users.length,
+    totalGamesStarted: games.length,
+    activeGames:       games.filter(g => g.phase === 'game').length,
+    completedGames:    games.filter(g => g.phase === 'ended').length,
+    liveRoomsInMemory: rooms.size,
+    pushEnabledUsers:  pushEnabled.length,
+  });
+});
+
+app.get('/api/admin/users', requireAuth, requireAdmin, (_, res) => {
+  const users        = getAllUsers();
+  const games        = getAllStartedGames();
+  const pushEnabled  = new Set(getPushEnabledUserIds());
+  const usersById    = new Map(users.map(u => [u.id, u]));
+
+  const stats = new Map(); // userId -> { gamesPlayed, wins, losses, coplayerIds:Set }
+  function statFor(id) {
+    if (!stats.has(id)) stats.set(id, { gamesPlayed:0, wins:0, losses:0, coplayerIds:new Set() });
+    return stats.get(id);
+  }
+
+  for (const game of games) {
+    const players  = game.state?.players || [];
+    const boards   = game.state?.boards  || [];
+    const humanIds = players.filter(p => p.userId).map(p => p.userId);
+
+    players.forEach((p, idx) => {
+      if (!p.userId) return;
+      const s = statFor(p.userId);
+      s.gamesPlayed++;
+      humanIds.forEach(oid => { if (oid !== p.userId) s.coplayerIds.add(oid); });
+
+      if (game.phase === 'ended' && boards.length) {
+        const scores      = boards.map(b => b.score ?? 0);
+        const maxScore    = Math.max(...scores);
+        const winnerCount = scores.filter(sc => sc === maxScore).length;
+        const myScore     = boards[idx]?.score ?? 0;
+        if (winnerCount === 1 && myScore === maxScore) s.wins++;
+        else s.losses++;
+      }
+    });
+  }
+
+  const result = users.map(u => {
+    const s = stats.get(u.id) || { gamesPlayed:0, wins:0, losses:0, coplayerIds:new Set() };
+    return {
+      id:          u.id,
+      name:        u.name,
+      email:       u.email,
+      created:     u.created,
+      pushEnabled: pushEnabled.has(u.id),
+      notifyEmail: !!u.notify_email,
+      gamesPlayed: s.gamesPlayed,
+      wins:        s.wins,
+      losses:      s.losses,
+      coplayers:   [...s.coplayerIds].map(id => usersById.get(id)?.name).filter(Boolean),
+    };
+  });
+
+  res.json({ users: result });
 });
 
 // ── Push notification routes ───────────────────────────────
@@ -611,8 +696,8 @@ function onPickTiles(ws, payload) {
 
   console.log(`[pick_tiles] ${meta.playerId} picked ${payload.color} from ${payload.source} → row ${payload.targetRow} in [${meta.roomCode}]`);
 
-  if (gs.phase === 'end') markGameEnded(meta.roomCode);
-  else persistRoom(meta.roomCode);
+  if (gs.phase === 'end') room.phase = 'ended';
+  persistRoom(meta.roomCode);
 
   broadcast(meta.roomCode, { type:'state_update', gameState:gs });
   maybeScheduleAI(meta.roomCode);
@@ -703,8 +788,8 @@ function runAITurn(roomCode) {
   if (!move) return;
   const err = applyPickTiles(gs, cp.id, move);
   if (err) { console.error(`[${roomCode}] AI error: ${err}`); return; }
-  if (gs.phase === 'end') markGameEnded(roomCode);
-  else persistRoom(roomCode);
+  if (gs.phase === 'end') room.phase = 'ended';
+  persistRoom(roomCode);
   broadcast(roomCode, { type:'state_update', gameState:gs });
   maybeScheduleAI(roomCode);
 }

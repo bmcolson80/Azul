@@ -819,6 +819,12 @@ input#otp-code{letter-spacing:12px;font-size:28px}
       <span class="menu-icon">🔔</span><span class="menu-label">Notification Settings</span>
     </button>
 
+    <div class="menu-divider" id="menu-admin-divider" style="display:none"></div>
+    <div class="menu-section-title" id="menu-admin-title" style="display:none">ADMIN</div>
+    <button class="menu-item" id="menu-admin-item" style="display:none" onclick="window.location.href='/admin'">
+      <span class="menu-icon">📊</span><span class="menu-label">Admin Dashboard</span>
+    </button>
+
     <div class="menu-divider"></div>
     <div class="menu-section-title">HELP</div>
     <button class="menu-item" onclick="closeMenu();openRules()">
@@ -962,6 +968,7 @@ const DIFF_ICONS    = {rookie:'🟦',veteran:'🟨',master:'🟥'};
 
 // ── App state ─────────────────────────────────────────────
 let currentUser  = null;
+let isAdmin      = false;
 let ws           = null;
 let myId         = null;
 let myRoomCode   = null;
@@ -1032,6 +1039,9 @@ function showAuthError(form, msg) {
 function onLoggedIn() {
   document.getElementById('user-avatar').textContent = currentUser.name.charAt(0).toUpperCase();
   document.getElementById('user-name-display').textContent = currentUser.name;
+  document.getElementById('menu-admin-divider').style.display = isAdmin ? 'block' : 'none';
+  document.getElementById('menu-admin-title').style.display   = isAdmin ? 'block' : 'none';
+  document.getElementById('menu-admin-item').style.display    = isAdmin ? 'flex'  : 'none';
   renderAISlots();
   loadMyGames();
   showScreen('dashboard');
@@ -1046,6 +1056,7 @@ async function checkSession() {
     if (res.ok) {
       const data = await res.json();
       currentUser = data.user;
+      isAdmin = !!data.isAdmin;
       onLoggedIn();
     } else {
       showScreen('auth');

@@ -121,6 +121,12 @@ export function getUserById(id) {
   return rowToObj(res[0]);
 }
 
+export function getAllUsers() {
+  const res = db.exec('SELECT * FROM users ORDER BY created DESC');
+  if (!res.length) return [];
+  return res[0].values.map(row => zipRow(res[0].columns, row));
+}
+
 // ── Games ─────────────────────────────────────────────────
 export function saveGame(roomCode, gameState, players, phase) {
   const id  = roomCode;
@@ -179,6 +185,16 @@ export function linkPlayerToGame(gameId, userId, playerId, seat) {
     ON CONFLICT(game_id, player_id) DO UPDATE SET user_id=excluded.user_id
   `, [gameId, userId, playerId, seat]);
   save();
+}
+
+export function getAllStartedGames() {
+  // Excludes lobbies that were created but never actually started
+  const res = db.exec("SELECT room_code, phase, state, created, updated FROM games WHERE phase != 'lobby' ORDER BY created ASC");
+  if (!res.length) return [];
+  return res[0].values.map(row => {
+    const obj = zipRow(res[0].columns, row);
+    return { ...obj, state: obj.state ? JSON.parse(obj.state) : null };
+  });
 }
 
 export function markGameEnded(roomCode) {
@@ -289,6 +305,12 @@ export function getPushSubscriptions(userId) {
     res[0].columns.forEach((col, i) => { obj[col] = row[i]; });
     return { ...obj, keys: JSON.parse(obj.keys) };
   });
+}
+
+export function getPushEnabledUserIds() {
+  const res = db.exec('SELECT DISTINCT user_id FROM push_subscriptions WHERE enabled=1');
+  if (!res.length) return [];
+  return res[0].values.map(r => r[0]);
 }
 
 export function getUserPushStatus(userId) {
