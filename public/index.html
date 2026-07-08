@@ -1149,10 +1149,32 @@ function renderAISlots() {
 function connectWS() {
   const proto = location.protocol==='https:'?'wss':'ws';
   ws = new WebSocket(`${proto}://${location.host}`);
-  ws.onopen  = () => { setBadge(true); };
+  ws.onopen  = () => { setBadge(true); maybeAutoJoinFromURL(); };
   ws.onclose = () => { setBadge(false); setTimeout(connectWS, 2000); };
   ws.onerror = () => setBadge(false);
   ws.onmessage = ev => { try { handleWSMessage(JSON.parse(ev.data)); } catch {} };
+}
+
+// ── Auto create/join from a GamesNight invite link ─────────
+let pendingAutoJoin = null; // { code, attempts }
+
+function maybeAutoJoinFromURL() {
+  const params     = new URLSearchParams(location.search);
+  const createCode = params.get('createRoom');
+  const joinCode   = params.get('joinRoom');
+  if (!createCode && !joinCode) return;
+
+  const url = new URL(location.href);
+  url.searchParams.delete('createRoom');
+  url.searchParams.delete('joinRoom');
+  history.replaceState({}, '', url);
+
+  if (createCode) {
+    sendWS({ type:'create_room', playerName: currentUser.name, aiPlayers: [], roomCode: createCode });
+  } else if (joinCode) {
+    pendingAutoJoin = { code: joinCode, attempts: 0 };
+    sendWS({ type:'join_room', playerName: currentUser.name, roomCode: joinCode });
+  }
 }
 
 function sendWS(data) { if (ws?.readyState===1) ws.send(JSON.stringify(data)); }
@@ -1166,10 +1188,12 @@ function setBadge(ok)  {
 function handleWSMessage(msg) {
   switch (msg.type) {
     case 'room_created':
+      pendingAutoJoin = null;
       myId = msg.playerId; myRoomCode = msg.roomCode;
       showWaitingRoom(msg.players);
       break;
     case 'room_joined':
+      pendingAutoJoin = null;
       myId = msg.playerId; myRoomCode = msg.roomCode;
       showWaitingRoom(msg.players);
       break;
@@ -1227,6 +1251,14 @@ function handleWSMessage(msg) {
       showToast('A player left');
       break;
     case 'error':
+      if (pendingAutoJoin && msg.message === 'Room not found. Check the code.') {
+        pendingAutoJoin.attempts++;
+        if (pendingAutoJoin.attempts < 5) {
+          setTimeout(() => sendWS({ type:'join_room', playerName: currentUser.name, roomCode: pendingAutoJoin.code }), 1000);
+          break;
+        }
+        pendingAutoJoin = null;
+      }
       showDashError(msg.message, true);
       break;
   }

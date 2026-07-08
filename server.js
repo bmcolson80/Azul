@@ -205,6 +205,33 @@ app.get('/api/my-games', requireAuth, (req, res) => {
   }))});
 });
 
+// ── SSO handoff from GamesNight hub ─────────────────────────
+// The hub redirects here with its JWT; we trust it (same JWT_SECRET) and
+// set our own first-party cookie, since cookies can't cross origins.
+app.get('/sso', async (req, res) => {
+  const { token, createRoom, joinRoom } = req.query;
+  if (token) {
+    try {
+      const payload = jwt.verify(token, JWT_SECRET);
+      // Accounts created directly on the hub (or not yet migrated) have no
+      // local row here — Azul's own users table is the source of truth for
+      // downstream reads like /api/me, so mirror one in on first SSO login.
+      if (!getUserById(payload.id)) {
+        const placeholderHash = await bcrypt.hash(generateId() + Date.now(), 10);
+        createUser({ id: payload.id, email: payload.email, name: payload.name, password: placeholderHash });
+      }
+      res.cookie('azul_token', token, { httpOnly:true, sameSite:'lax', maxAge:30*24*60*60*1000 });
+    } catch {
+      // invalid/expired token — fall through unauthenticated
+    }
+  }
+  const params = new URLSearchParams();
+  if (createRoom) params.set('createRoom', createRoom);
+  if (joinRoom)   params.set('joinRoom', joinRoom);
+  const qs = params.toString();
+  res.redirect('/' + (qs ? '?' + qs : ''));
+});
+
 // ── Admin routes ────────────────────────────────────────────
 // The HTML shell itself has no sensitive data — access control happens
 // at the /api/admin/* endpoints below, which the page calls client-side.
@@ -278,6 +305,12 @@ app.get('/api/admin/users', requireAuth, requireAdmin, (_, res) => {
   });
 
   res.json({ users: result });
+});
+
+// One-time export for migrating accounts into the GamesNight hub's users
+// table. Remove once the migration has been run.
+app.get('/api/admin/export-users', requireAuth, requireAdmin, (_, res) => {
+  res.json({ users: getAllUsers() });
 });
 
 // ── Push notification routes ───────────────────────────────
@@ -534,11 +567,19 @@ function onAuth(ws, { token }) {
 }
 
 // ── Lobby ──────────────────────────────────────────────────
-function onCreateRoom(ws, { playerName, aiPlayers = [] }, userId) {
+function onCreateRoom(ws, { playerName, aiPlayers = [], roomCode }, userId) {
   const name = (playerName || '').trim();
   if (!name) return send(ws, { type:'error', message:'Name required' });
 
-  const code     = generateCode();
+  // An explicit code is used when a GamesNight hub invite hands both
+  // players the same room code to rendezvous on.
+  let code;
+  if (roomCode) {
+    code = roomCode.toUpperCase();
+    if (rooms.has(code) || getGameByCode(code)) return send(ws, { type:'error', message:'Room already exists.' });
+  } else {
+    code = generateCode();
+  }
   const playerId = generateId();
   const human    = { id:playerId, name, color:PLAYER_COLORS[0], isAI:false, userId: userId||null };
 
