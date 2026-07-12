@@ -12,7 +12,7 @@ import jwt            from 'jsonwebtoken';
 import { fileURLToPath } from 'url';
 import { initDB, save as saveDB, createUser, getUserByEmail, getUserById, getAllUsers,
          saveGame, getGameByCode, getGamesForUser, getAllStartedGames, linkPlayerToGame, markGameEnded,
-         createOTP, getValidOTP, consumeOTP,
+         createOTP, getValidOTP, consumeOTP, updateUserPassword,
          savePushSubscription, removePushSubscription, setPushEnabled,
          getPushSubscriptions, getUserPushStatus, getPushEnabledUserIds,
          updateUserEmail, setEmailVerified,
@@ -37,7 +37,6 @@ process.on('unhandledRejection', (reason) => {
 });
 const JWT_SECRET  = process.env.JWT_SECRET || 'azul-secret-change-in-production';
 const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || 'bmcolson80@gmail.com').toLowerCase();
-const HUB_URL     = process.env.HUB_URL || 'http://localhost:4000';
 
 // ── Web Push / VAPID ───────────────────────────────────────
 const VAPID_PUBLIC  = process.env.VAPID_PUBLIC_KEY  || '';
@@ -149,60 +148,36 @@ function requireAdmin(req, res, next) {
 
 function generateId() { return Math.random().toString(36).substr(2,9); }
 
-// ── GamesNight hub — canonical account store ────────────────
-// The hub owns the real password now; every auth route here proxies to it
-// so "register on Azul" and "register on the hub" are the same account.
-async function callHub(path, body) {
-  const hubRes = await fetch(`${HUB_URL}${path}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  const data = await hubRes.json().catch(() => ({}));
-  const setCookie = hubRes.headers.get('set-cookie') || '';
-  const match = setCookie.match(/gamesnight_token=([^;]+)/);
-  return { ok: hubRes.ok, status: hubRes.status, data, token: match ? match[1] : null };
-}
-
-// Given a hub-issued JWT (from a proxied auth call or the /sso handoff),
-// establish a local Azul session: mirror a local users row if this account
-// has never been seen here before, then set our own first-party cookie —
-// cookies can't cross origins, so each app always needs its own.
-async function establishLocalSession(token, res) {
-  const payload = jwt.verify(token, JWT_SECRET);
-  if (!getUserById(payload.id)) {
-    const placeholderHash = await bcrypt.hash(generateId() + Date.now(), 10);
-    createUser({ id: payload.id, email: payload.email, name: payload.name, password: placeholderHash });
-  }
-  res.cookie('azul_token', token, { httpOnly:true, sameSite:'lax', maxAge:30*24*60*60*1000 });
-  return payload;
-}
-
 // ── Auth routes ────────────────────────────────────────────
 app.post('/api/register', async (req, res) => {
   const { email, name, password } = req.body;
-  let result;
-  try { result = await callHub('/api/register', { email, name, password }); }
-  catch { return res.status(502).json({ error: 'Account service is unreachable. Please try again shortly.' }); }
-  if (!result.ok) return res.status(result.status).json(result.data);
-  if (!result.token) return res.status(502).json({ error: 'Unexpected response from account service.' });
+  if (!email || !name || !password)
+    return res.status(400).json({ error: 'Email, name and password required' });
+  if (password.length < 6)
+    return res.status(400).json({ error: 'Password must be at least 6 characters' });
+  if (getUserByEmail(email))
+    return res.status(409).json({ error: 'An account with that email already exists' });
 
-  try { await establishLocalSession(result.token, res); }
-  catch { return res.status(502).json({ error: 'Could not establish session.' }); }
-  res.json(result.data);
+  const id   = generateId();
+  const hash = await bcrypt.hash(password, 10);
+  createUser({ id, email, name, password: hash });
+
+  const token = jwt.sign({ id, email, name }, JWT_SECRET, { expiresIn: '30d' });
+  res.cookie('azul_token', token, { httpOnly:true, sameSite:'lax', maxAge:30*24*60*60*1000 });
+  res.json({ ok:true, user:{ id, email, name } });
 });
 
 app.post('/api/login', async (req, res) => {
   const { email, password } = req.body;
-  let result;
-  try { result = await callHub('/api/login', { email, password }); }
-  catch { return res.status(502).json({ error: 'Account service is unreachable. Please try again shortly.' }); }
-  if (!result.ok) return res.status(result.status).json(result.data);
-  if (!result.token) return res.status(502).json({ error: 'Unexpected response from account service.' });
+  if (!email || !password) return res.status(400).json({ error: 'Email and password required' });
+  const user = getUserByEmail(email);
+  if (!user) return res.status(401).json({ error: 'No account found with that email' });
+  const valid = await bcrypt.compare(password, user.password);
+  if (!valid) return res.status(401).json({ error: 'Incorrect password' });
 
-  try { await establishLocalSession(result.token, res); }
-  catch { return res.status(502).json({ error: 'Could not establish session.' }); }
-  res.json(result.data);
+  const token = jwt.sign({ id:user.id, email:user.email, name:user.name }, JWT_SECRET, { expiresIn:'30d' });
+  res.cookie('azul_token', token, { httpOnly:true, sameSite:'lax', maxAge:30*24*60*60*1000 });
+  res.json({ ok:true, user:{ id:user.id, email:user.email, name:user.name } });
 });
 
 app.post('/api/logout', (_, res) => {
@@ -236,8 +211,19 @@ app.get('/api/my-games', requireAuth, (req, res) => {
 app.get('/sso', async (req, res) => {
   const { token, createRoom, joinRoom } = req.query;
   if (token) {
-    try { await establishLocalSession(token, res); }
-    catch { /* invalid/expired token — fall through unauthenticated */ }
+    try {
+      const payload = jwt.verify(token, JWT_SECRET);
+      // Accounts created directly on the hub (or not yet migrated) have no
+      // local row here — Azul's own users table is the source of truth for
+      // downstream reads like /api/me, so mirror one in on first SSO login.
+      if (!getUserById(payload.id)) {
+        const placeholderHash = await bcrypt.hash(generateId() + Date.now(), 10);
+        createUser({ id: payload.id, email: payload.email, name: payload.name, password: placeholderHash });
+      }
+      res.cookie('azul_token', token, { httpOnly:true, sameSite:'lax', maxAge:30*24*60*60*1000 });
+    } catch {
+      // invalid/expired token — fall through unauthenticated
+    }
   }
   const params = new URLSearchParams();
   if (createRoom) params.set('createRoom', createRoom);
@@ -434,31 +420,90 @@ app.post('/api/profile/email/confirm-change', requireAuth, async (req, res) => {
 
 app.post('/api/forgot-password', async (req, res) => {
   const { email } = req.body;
-  let result;
-  try { result = await callHub('/api/forgot-password', { email }); }
-  catch { return res.status(502).json({ error: 'Account service is unreachable. Please try again shortly.' }); }
-  res.status(result.status).json(result.data);
+  if (!email?.trim()) return res.status(400).json({ error: 'Email required' });
+
+  const user = getUserByEmail(email);
+  // Always return success to avoid user enumeration
+  if (!user) return res.json({ ok: true });
+
+  const code      = String(Math.floor(100000 + Math.random() * 900000)); // 6-digit OTP
+  const expiresAt = Math.floor(Date.now() / 1000) + 15 * 60; // 15 minutes
+  const id        = generateId();
+  createOTP({ id, email: email.trim(), code, expiresAt });
+
+  if (resend) {
+    try {
+      await resend.emails.send({
+        from:    'Azul <noreply@' + (process.env.EMAIL_DOMAIN || 'azul.game') + '>',
+        to:      user.email,
+        subject: 'Your Azul password reset code',
+        html: `
+          <div style="font-family:sans-serif;max-width:400px;margin:0 auto;padding:32px;background:#1a1f3a;color:#f5ecd7;border-radius:12px">
+            <h1 style="font-family:serif;color:#c9a227;letter-spacing:4px;margin:0 0 8px">AZUL</h1>
+            <p style="color:rgba(245,236,215,0.6);font-size:13px;margin:0 0 32px">DIGITAL EDITION</p>
+            <p style="margin:0 0 16px">Your password reset code is:</p>
+            <div style="background:#252c50;border:2px dashed #c9a227;border-radius:8px;padding:20px;text-align:center;margin:0 0 24px">
+              <span style="font-family:monospace;font-size:36px;font-weight:700;letter-spacing:12px;color:#c9a227">${code}</span>
+            </div>
+            <p style="color:rgba(245,236,215,0.5);font-size:12px;margin:0">This code expires in 15 minutes. If you didn't request this, you can safely ignore it.</p>
+          </div>
+        `,
+      });
+    } catch (err) {
+      console.error('Email send failed:', err.message);
+      // Don't expose error to client
+    }
+  } else {
+    // Dev fallback — log to console
+    console.log(`[DEV] OTP for ${email}: ${code}`);
+  }
+
+  res.json({ ok: true });
 });
 
-app.post('/api/verify-otp', async (req, res) => {
+app.post('/api/verify-otp', (req, res) => {
   const { email, code } = req.body;
-  let result;
-  try { result = await callHub('/api/verify-otp', { email, code }); }
-  catch { return res.status(502).json({ error: 'Account service is unreachable. Please try again shortly.' }); }
-  res.status(result.status).json(result.data);
+  if (!email || !code) return res.status(400).json({ error: 'Email and code required' });
+
+  const otp = getValidOTP(email, code.trim());
+  if (!otp) return res.status(400).json({ error: 'Invalid or expired code. Please try again.' });
+
+  // Return a short-lived reset token (JWT, 10 min)
+  const resetToken = jwt.sign(
+    { email: email.toLowerCase().trim(), otpId: otp.id, purpose: 'password-reset' },
+    JWT_SECRET,
+    { expiresIn: '10m' }
+  );
+
+  res.json({ ok: true, resetToken });
 });
 
 app.post('/api/reset-password', async (req, res) => {
   const { resetToken, newPassword } = req.body;
-  let result;
-  try { result = await callHub('/api/reset-password', { resetToken, newPassword }); }
-  catch { return res.status(502).json({ error: 'Account service is unreachable. Please try again shortly.' }); }
-  if (!result.ok) return res.status(result.status).json(result.data);
-  if (!result.token) return res.status(502).json({ error: 'Unexpected response from account service.' });
+  if (!resetToken || !newPassword) return res.status(400).json({ error: 'Token and new password required' });
+  if (newPassword.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters' });
 
-  try { await establishLocalSession(result.token, res); }
-  catch { return res.status(502).json({ error: 'Could not establish session.' }); }
-  res.json(result.data);
+  let payload;
+  try {
+    payload = jwt.verify(resetToken, JWT_SECRET);
+  } catch {
+    return res.status(400).json({ error: 'Reset link has expired. Please request a new one.' });
+  }
+
+  if (payload.purpose !== 'password-reset')
+    return res.status(400).json({ error: 'Invalid token' });
+
+  // Consume the OTP so it can't be reused
+  consumeOTP(payload.otpId);
+
+  const hash = await bcrypt.hash(newPassword, 10);
+  updateUserPassword(payload.email, hash);
+
+  // Auto-sign them in
+  const user  = getUserByEmail(payload.email);
+  const token = jwt.sign({ id:user.id, email:user.email, name:user.name }, JWT_SECRET, { expiresIn:'30d' });
+  res.cookie('azul_token', token, { httpOnly:true, sameSite:'lax', maxAge:30*24*60*60*1000 });
+  res.json({ ok:true, user:{ id:user.id, email:user.email, name:user.name } });
 });
 
 
