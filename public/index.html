@@ -426,8 +426,11 @@ input#otp-code{letter-spacing:12px;font-size:28px}
 </head>
 <body>
 
+<!-- ═══ BOOT SCREEN (blank placeholder shown while session check resolves, avoids flashing the login screen for already-authenticated users) ═══ -->
+<div id="boot-screen" class="screen active"></div>
+
 <!-- ═══ AUTH SCREEN ═══ -->
-<div id="auth-screen" class="screen active">
+<div id="auth-screen" class="screen">
   <div class="centered">
     <div style="text-align:center;margin-bottom:32px">
       <div class="logo-tiles">
