@@ -38,6 +38,10 @@ process.on('unhandledRejection', (reason) => {
 const JWT_SECRET  = process.env.JWT_SECRET || 'azul-secret-change-in-production';
 const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || 'bmcolson80@gmail.com').toLowerCase();
 
+const HUB_URL              = process.env.HUB_URL || '';
+const INTERNAL_SYNC_SECRET = process.env.INTERNAL_SYNC_SECRET || '';
+const GAMESNIGHT_HUB_URL   = process.env.GAMESNIGHT_HUB_URL || 'https://gamesnight-hub-production.up.railway.app';
+
 // ── Web Push / VAPID ───────────────────────────────────────
 const VAPID_PUBLIC  = process.env.VAPID_PUBLIC_KEY  || '';
 const VAPID_PRIVATE = process.env.VAPID_PRIVATE_KEY || '';
@@ -146,6 +150,32 @@ function requireAdmin(req, res, next) {
   next();
 }
 
+function requireInternalSecret(req, res, next) {
+  if (!INTERNAL_SYNC_SECRET || req.headers['x-internal-secret'] !== INTERNAL_SYNC_SECRET) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+  next();
+}
+
+// Best-effort notify the hub of a new/changed local password so it can
+// replicate it to other sibling games. Never blocks or fails the caller —
+// register/login must keep working locally even if the hub is unreachable.
+async function pushAccountSyncToHub({ email, name, passwordHash }) {
+  if (!HUB_URL || !INTERNAL_SYNC_SECRET) return;
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 3000);
+    await fetch(`${HUB_URL}/api/internal/sync-account`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Internal-Secret': INTERNAL_SYNC_SECRET },
+      body: JSON.stringify({ email, name, passwordHash, sourceGameId: 'azul' }),
+      signal: controller.signal,
+    }).finally(() => clearTimeout(timeout));
+  } catch (err) {
+    console.error('[sync-account] Failed to push to hub:', err.message);
+  }
+}
+
 function generateId() { return Math.random().toString(36).substr(2,9); }
 
 // ── Auth routes ────────────────────────────────────────────
@@ -161,6 +191,7 @@ app.post('/api/register', async (req, res) => {
   const id   = generateId();
   const hash = await bcrypt.hash(password, 10);
   createUser({ id, email, name, password: hash });
+  pushAccountSyncToHub({ email, name, passwordHash: hash });
 
   const token = jwt.sign({ id, email, name }, JWT_SECRET, { expiresIn: '30d' });
   res.cookie('azul_token', token, { httpOnly:true, sameSite:'lax', maxAge:30*24*60*60*1000 });
@@ -191,6 +222,7 @@ app.get('/api/me', requireAuth, (req, res) => {
   res.json({
     user: { id:user.id, email:user.email, name:user.name },
     isAdmin: user.email.toLowerCase() === ADMIN_EMAIL,
+    hubUrl: GAMESNIGHT_HUB_URL,
   });
 });
 
@@ -216,7 +248,9 @@ app.get('/sso', async (req, res) => {
       // Accounts created directly on the hub (or not yet migrated) have no
       // local row here — Azul's own users table is the source of truth for
       // downstream reads like /api/me, so mirror one in on first SSO login.
-      if (!getUserById(payload.id)) {
+      // Looked up by email (not id) since a returning user's Azul account
+      // may already exist under a different locally-generated id.
+      if (!getUserByEmail(payload.email)) {
         const placeholderHash = await bcrypt.hash(generateId() + Date.now(), 10);
         createUser({ id: payload.id, email: payload.email, name: payload.name, password: placeholderHash });
       }
@@ -232,13 +266,25 @@ app.get('/sso', async (req, res) => {
   res.redirect('/' + (qs ? '?' + qs : ''));
 });
 
-// ── Admin routes ────────────────────────────────────────────
-// The HTML shell itself has no sensitive data — access control happens
-// at the /api/admin/* endpoints below, which the page calls client-side.
-app.get('/admin', (_, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'admin.html'));
+// Receives a replicated account (email/name/password hash) from the hub —
+// either the hub's own account or one pushed here from another sibling game.
+// Internal-secret-gated, not a user session route.
+app.post('/api/internal/sync-account', requireInternalSecret, (req, res) => {
+  const { email, name, passwordHash } = req.body ?? {};
+  if (!email || !name || !passwordHash)
+    return res.status(400).json({ error: 'email, name and passwordHash required' });
+  const existing = getUserByEmail(email);
+  if (existing) {
+    updateUserPassword(email, passwordHash);
+  } else {
+    createUser({ id: generateId(), email, name, password: passwordHash });
+  }
+  res.json({ ok: true });
 });
 
+// ── Admin routes ────────────────────────────────────────────
+// The per-game /admin UI has been retired — the GamesNight hub now calls
+// these same endpoints to render a single consolidated dashboard.
 app.get('/api/admin/overview', requireAuth, requireAdmin, (_, res) => {
   const users        = getAllUsers();
   const games        = getAllStartedGames();
@@ -501,6 +547,7 @@ app.post('/api/reset-password', async (req, res) => {
 
   // Auto-sign them in
   const user  = getUserByEmail(payload.email);
+  pushAccountSyncToHub({ email: user.email, name: user.name, passwordHash: hash });
   const token = jwt.sign({ id:user.id, email:user.email, name:user.name }, JWT_SECRET, { expiresIn:'30d' });
   res.cookie('azul_token', token, { httpOnly:true, sameSite:'lax', maxAge:30*24*60*60*1000 });
   res.json({ ok:true, user:{ id:user.id, email:user.email, name:user.name } });
@@ -529,10 +576,16 @@ wss.on('connection', (ws, req) => {
   ws.on('error', () => handleDisconnect(ws));
 });
 
-// Boot DB then start server
-initDB().then(() => {
-  server.listen(PORT, () => console.log(`🎮 Azul server → http://localhost:${PORT}`));
-});
+// Boot DB then start server (skipped on import for tests, which call
+// initDB()/server.listen() themselves against a test port/DB)
+const isMain = import.meta.url === `file://${process.argv[1]}`;
+if (isMain) {
+  initDB().then(() => {
+    server.listen(PORT, () => console.log(`🎮 Azul server → http://localhost:${PORT}`));
+  });
+}
+
+export { app, server };
 
 // ── WS message router ──────────────────────────────────────
 function handleMessage(ws, msg, userId) {
