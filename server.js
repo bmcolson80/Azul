@@ -10,7 +10,7 @@ import cookieParser   from 'cookie-parser';
 import bcrypt         from 'bcryptjs';
 import jwt            from 'jsonwebtoken';
 import { fileURLToPath } from 'url';
-import { initDB, save as saveDB, createUser, getUserByEmail, getUserById, getAllUsers,
+import { initDB, save as saveDB, createUser, getUserByEmail, getUserById, getAllUsers, deleteUser,
          saveGame, getGameByCode, getGamesForUser, getAllStartedGames, linkPlayerToGame, markGameEnded,
          createOTP, getValidOTP, consumeOTP, updateUserPassword,
          savePushSubscription, removePushSubscription, setPushEnabled,
@@ -357,6 +357,13 @@ app.get('/api/admin/users', requireAuth, requireAdmin, (_, res) => {
 // table. Remove once the migration has been run.
 app.get('/api/admin/export-users', requireAuth, requireAdmin, (_, res) => {
   res.json({ users: getAllUsers() });
+});
+
+app.delete('/api/admin/users/:id', requireAuth, requireAdmin, (req, res) => {
+  const user = getUserById(req.params.id);
+  if (!user) return res.status(404).json({ error: 'User not found' });
+  deleteUser(req.params.id);
+  res.json({ ok: true });
 });
 
 // ── Push notification routes ───────────────────────────────

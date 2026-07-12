@@ -127,6 +127,11 @@ export function getAllUsers() {
   return res[0].values.map(row => zipRow(res[0].columns, row));
 }
 
+export function deleteUser(id) {
+  db.run('DELETE FROM users WHERE id = ?', [id]);
+  save();
+}
+
 // ── Games ─────────────────────────────────────────────────
 export function saveGame(roomCode, gameState, players, phase) {
   const id  = roomCode;
