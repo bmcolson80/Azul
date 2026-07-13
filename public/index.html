@@ -1163,11 +1163,13 @@ function maybeAutoJoinFromURL() {
   const params     = new URLSearchParams(location.search);
   const createCode = params.get('createRoom');
   const joinCode   = params.get('joinRoom');
-  if (!createCode && !joinCode) return;
+  const resumeCode = params.get('resumeRoom');
+  if (!createCode && !joinCode && !resumeCode) return;
 
   const url = new URL(location.href);
   url.searchParams.delete('createRoom');
   url.searchParams.delete('joinRoom');
+  url.searchParams.delete('resumeRoom');
   history.replaceState({}, '', url);
 
   if (createCode) {
@@ -1175,6 +1177,8 @@ function maybeAutoJoinFromURL() {
   } else if (joinCode) {
     pendingAutoJoin = { code: joinCode, attempts: 0 };
     sendWS({ type:'join_room', playerName: currentUser.name, roomCode: joinCode });
+  } else if (resumeCode) {
+    rejoinRoom(resumeCode);
   }
 }
 

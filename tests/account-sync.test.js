@@ -10,6 +10,7 @@
 import { test, describe, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'fs';
+import jwt from 'jsonwebtoken';
 
 process.env.NODE_ENV           = 'test';
 process.env.DB_PATH            = './tests/account-sync-test.db';
@@ -100,5 +101,44 @@ describe('Internal sync-account endpoint', () => {
       body: JSON.stringify({ email, password: 'originalpass' }),
     });
     assert.equal(loginRes.status, 401);
+  });
+});
+
+describe('/sso identity mapping', () => {
+  // A user who registered directly on Azul before ever touching the hub has
+  // a local row id that's unrelated to the hub's id for the same email. The
+  // hub's JWT should never be trusted verbatim as the local session — /sso
+  // must always resolve (or create) the local row and mint a session scoped
+  // to *that* row's real id, since every other requireAuth route on Azul
+  // looks up req.user.id against this local users table.
+  test('returning user with a different local id gets a session mapped to their real local row', async () => {
+    const email = `sso-mismatch-${Date.now()}@example.com`;
+
+    const regRes = await fetch(`${BASE_URL}/api/register`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, name: 'Mismatch User', password: 'password123' }),
+    });
+    const { user: localUser } = await regRes.json();
+
+    // Simulate a hub-issued JWT for the same email under a different id —
+    // exactly what the hub would send for an account that predates this
+    // game joining the GamesNight hub.
+    const hubToken = jwt.sign(
+      { id: 'totally-different-hub-id', email, name: 'Mismatch User' },
+      'test-secret',
+      { expiresIn: '5m' }
+    );
+
+    const ssoRes = await fetch(`${BASE_URL}/sso?token=${encodeURIComponent(hubToken)}`, { redirect: 'manual' });
+    assert.equal(ssoRes.status, 302);
+    const setCookie = ssoRes.headers.get('set-cookie');
+    assert.ok(setCookie, 'expected /sso to set a session cookie');
+    const cookieValue = /azul_token=([^;]+)/.exec(setCookie)[1];
+
+    const meRes = await fetch(`${BASE_URL}/api/me`, { headers: { Cookie: `azul_token=${cookieValue}` } });
+    assert.equal(meRes.status, 200);
+    const me = await meRes.json();
+    assert.equal(me.user.id, localUser.id);
+    assert.equal(me.user.email, email);
   });
 });

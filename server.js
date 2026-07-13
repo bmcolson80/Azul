@@ -228,20 +228,25 @@ app.get('/api/me', requireAuth, (req, res) => {
 
 app.get('/api/my-games', requireAuth, (req, res) => {
   const games = getGamesForUser(req.user.id);
-  res.json({ games: games.map(g => ({
-    roomCode:   g.room_code,
-    phase:      g.phase,
-    round:      g.state?.round ?? 1,
-    players:    g.players,
-    updatedAt:  g.updated,
-  }))});
+  res.json({ games: games.map(g => {
+    const turnPlayer = g.phase === 'game' ? g.state?.players?.[g.state.currentPlayer] : null;
+    return {
+      roomCode:       g.room_code,
+      phase:          g.phase,
+      round:          g.state?.round ?? 1,
+      players:        g.players,
+      updatedAt:      g.updated,
+      yourTurn:       turnPlayer?.userId === req.user.id,
+      turnPlayerName: turnPlayer?.name ?? null,
+    };
+  })});
 });
 
 // ── SSO handoff from GamesNight hub ─────────────────────────
 // The hub redirects here with its JWT; we trust it (same JWT_SECRET) and
 // set our own first-party cookie, since cookies can't cross origins.
 app.get('/sso', async (req, res) => {
-  const { token, createRoom, joinRoom } = req.query;
+  const { token, createRoom, joinRoom, resumeRoom } = req.query;
   if (token) {
     try {
       const payload = jwt.verify(token, JWT_SECRET);
@@ -250,11 +255,18 @@ app.get('/sso', async (req, res) => {
       // downstream reads like /api/me, so mirror one in on first SSO login.
       // Looked up by email (not id) since a returning user's Azul account
       // may already exist under a different locally-generated id.
-      if (!getUserByEmail(payload.email)) {
+      let user = getUserByEmail(payload.email);
+      if (!user) {
         const placeholderHash = await bcrypt.hash(generateId() + Date.now(), 10);
         createUser({ id: payload.id, email: payload.email, name: payload.name, password: placeholderHash });
+        user = getUserByEmail(payload.email);
       }
-      res.cookie('azul_token', token, { httpOnly:true, sameSite:'lax', maxAge:30*24*60*60*1000 });
+      // Mint our own local session rather than forwarding the hub's token
+      // verbatim — a returning user's local row id can differ from the
+      // hub's id, and every requireAuth route here trusts req.user.id
+      // against this local users table, not the hub's.
+      const localToken = jwt.sign({ id: user.id, email: user.email, name: user.name }, JWT_SECRET, { expiresIn: '30d' });
+      res.cookie('azul_token', localToken, { httpOnly:true, sameSite:'lax', maxAge:30*24*60*60*1000 });
     } catch {
       // invalid/expired token — fall through unauthenticated
     }
@@ -262,6 +274,7 @@ app.get('/sso', async (req, res) => {
   const params = new URLSearchParams();
   if (createRoom) params.set('createRoom', createRoom);
   if (joinRoom)   params.set('joinRoom', joinRoom);
+  if (resumeRoom) params.set('resumeRoom', resumeRoom);
   const qs = params.toString();
   res.redirect('/' + (qs ? '?' + qs : ''));
 });
