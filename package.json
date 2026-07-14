@@ -10,7 +10,8 @@
     "test": "node --test tests/game.test.js",
     "test:e2e": "node --test --test-timeout=20000 tests/e2e.test.js",
     "test:account-sync": "node --test --test-timeout=20000 tests/account-sync.test.js",
-    "test:all": "node --test --test-timeout=20000 tests/game.test.js tests/e2e.test.js tests/account-sync.test.js"
+    "test:notifications": "node --test --test-timeout=20000 tests/notifications.test.js",
+    "test:all": "node --test --test-timeout=20000 tests/game.test.js tests/e2e.test.js tests/account-sync.test.js tests/notifications.test.js"
   },
   "dependencies": {
     "@sqlite.org/sqlite-wasm": "^3.53.0-build1",

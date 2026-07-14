@@ -15,7 +15,7 @@ import { initDB, save as saveDB, createUser, getUserByEmail, getUserById, getAll
          createOTP, getValidOTP, consumeOTP, updateUserPassword,
          savePushSubscription, removePushSubscription, setPushEnabled,
          getPushSubscriptions, getUserPushStatus, getPushEnabledUserIds,
-         updateUserEmail, setEmailVerified,
+         updateUserEmail, setEmailVerified, updateUserName,
          updateNotifyPrefs, getUsersToNotify } from './db.js';
 import webpush from 'web-push';
 import { Resend } from 'resend';
@@ -54,7 +54,7 @@ if (VAPID_PUBLIC && VAPID_PRIVATE) {
   console.log('⚠️  Push notifications disabled (set VAPID_PUBLIC_KEY + VAPID_PRIVATE_KEY)');
 }
 
-async function sendEmailNotification(userId, subject, html) {
+async function sendEmailNotification(userId, subject, text) {
   if (!resend) return;
   const user = getUserById(userId);
   if (!user || !user.notify_email) return;
@@ -63,23 +63,41 @@ async function sendEmailNotification(userId, subject, html) {
       from: 'Azul <noreply@' + (process.env.EMAIL_DOMAIN || 'azul.app') + '>',
       to: user.email,
       subject,
-      html,
+      text,
     });
   } catch (err) { console.error('[email notify] Failed:', err.message); }
 }
 
-async function notifyPlayer(userId, excludeUserId, { title, body, roomCode }) {
+// Email is a fallback channel for when push isn't active, not a parallel
+// one — never send both. Turn-notification emails are also debounced per
+// (userId, roomCode) so a fast-paced game can't flood an inbox; game-start
+// is a one-shot event per room and doesn't need debouncing.
+const turnEmailLastSent = new Map(); // `${userId}:${roomCode}` -> timestamp
+const TURN_EMAIL_DEBOUNCE_MS = 3 * 60 * 1000;
+
+function shouldSendTurnEmail(userId, roomCode) {
+  const key = `${userId}:${roomCode}`;
+  const last = turnEmailLastSent.get(key);
+  if (last && Date.now() - last < TURN_EMAIL_DEBOUNCE_MS) return false;
+  turnEmailLastSent.set(key, Date.now());
+  return true;
+}
+
+async function notifyPlayer(userId, excludeUserId, { title, body, roomCode, kind }) {
   if (userId === excludeUserId) return;
-  const emailHtml = `<div style="font-family:sans-serif;max-width:400px;margin:0 auto;padding:32px;background:#1a1f3a;color:#f5ecd7;border-radius:12px">
-    <h1 style="font-family:serif;color:#c9a227;letter-spacing:4px;margin:0 0 8px">AZUL</h1>
-    <p style="margin:0 0 16px;font-size:16px">${title}</p>
-    <p style="color:rgba(245,236,215,0.6);margin:0 0 24px">${body}</p>
-    <a href="${process.env.APP_URL || 'https://azul.up.railway.app'}" style="background:#c9a227;color:#1a1f3a;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:700;font-family:serif">Open Game →</a>
-  </div>`;
-  await Promise.all([
+  if (isActivelyViewing(userId, roomCode)) return;
+
+  const tasks = [
     sendPushToUser(userId, { title, body, icon:'/icon-192.png', badge:'/badge-72.png', tag:'azul-'+roomCode, data:{ roomCode, url:'/' } }),
-    sendEmailNotification(userId, title, emailHtml),
-  ]);
+  ];
+
+  const hasActivePush = getPushSubscriptions(userId).length > 0;
+  if (!hasActivePush && (kind !== 'turn' || shouldSendTurnEmail(userId, roomCode))) {
+    const emailText = `${body}\n\nTurn on push notifications in Notification Settings for instant updates next time — no more waiting on email.`;
+    tasks.push(sendEmailNotification(userId, title, emailText));
+  }
+
+  await Promise.all(tasks);
 }
 
 async function sendPushToUser(userId, payload) {
@@ -121,9 +139,21 @@ const AI_NAMES = {
 
 // ── In-memory rooms (backed by DB) ─────────────────────────
 // rooms: Map<roomCode, RoomState>
-// clients: Map<ws, { roomCode, playerId, userId }>
+// clients: Map<ws, { roomCode, playerId, userId, visible }>
 const rooms   = new Map();
 const clients = new Map();
+
+// A user counts as "actively viewing" a room only if they have a live WS
+// connection scoped to that exact roomCode with a foregrounded tab — being
+// merely connected (e.g. tab backgrounded, or on a different screen) is not
+// enough to suppress push/email. A user can have multiple simultaneous
+// connections (two tabs/devices); any one of them being visible suppresses.
+function isActivelyViewing(userId, roomCode) {
+  for (const meta of clients.values()) {
+    if (meta.userId === userId && meta.roomCode === roomCode && meta.visible) return true;
+  }
+  return false;
+}
 
 // ── Express + WS setup ────────────────────────────────────
 const app = express();
@@ -284,12 +314,14 @@ app.get('/sso', async (req, res) => {
 // Internal-secret-gated, not a user session route.
 app.post('/api/internal/sync-account', requireInternalSecret, (req, res) => {
   const { email, name, passwordHash } = req.body ?? {};
-  if (!email || !name || !passwordHash)
-    return res.status(400).json({ error: 'email, name and passwordHash required' });
+  if (!email || !name)
+    return res.status(400).json({ error: 'email and name required' });
   const existing = getUserByEmail(email);
   if (existing) {
-    updateUserPassword(email, passwordHash);
+    updateUserName(existing.id, name);
+    if (passwordHash) updateUserPassword(email, passwordHash);
   } else {
+    if (!passwordHash) return res.status(400).json({ error: 'passwordHash required for new user' });
     createUser({ id: generateId(), email, name, password: passwordHash });
   }
   res.json({ ok: true });
@@ -429,6 +461,22 @@ app.post('/api/profile/notify', requireAuth, (req, res) => {
   const { notifyEmail } = req.body;
   updateNotifyPrefs(req.user.id, { notifyEmail: !!notifyEmail, notifySms: false });
   res.json({ ok: true });
+});
+
+// ── Change display name ─────────────────────────────────────
+// Cosmetic, not a login identifier — no verification step needed, updates
+// immediately. Name is part of the shared identity, so replicate it to the
+// hub the same way password changes already are.
+app.post('/api/profile/name', requireAuth, (req, res) => {
+  const name = (req.body?.name || '').trim();
+  if (!name) return res.status(400).json({ error: 'Name is required' });
+  if (name.length > 20) return res.status(400).json({ error: 'Name must be 20 characters or fewer' });
+  updateUserName(req.user.id, name);
+  const user = getUserById(req.user.id);
+  const token = jwt.sign({ id: user.id, email: user.email, name: user.name }, JWT_SECRET, { expiresIn: '30d' });
+  res.cookie('azul_token', token, { httpOnly: true, sameSite: 'lax', maxAge: 30*24*60*60*1000 });
+  pushAccountSyncToHub({ email: user.email, name: user.name });
+  res.json({ ok: true, user: { id: user.id, email: user.email, name: user.name } });
 });
 
 // ── Change email ──────────────────────────────────────────────
@@ -586,7 +634,7 @@ wss.on('connection', (ws, req) => {
   if (match) {
     try { userId = jwt.verify(match[1], JWT_SECRET).id; } catch {}
   }
-  if (userId) clients.set(ws, { roomCode:null, playerId:null, userId });
+  if (userId) clients.set(ws, { roomCode:null, playerId:null, userId, visible:true });
 
   ws.on('message', raw => {
     let msg; try { msg = JSON.parse(raw); } catch { return; }
@@ -605,7 +653,7 @@ if (isMain) {
   });
 }
 
-export { app, server };
+export { app, server, clients, isActivelyViewing, notifyPlayer, shouldSendTurnEmail, turnEmailLastSent };
 
 // ── WS message router ──────────────────────────────────────
 function handleMessage(ws, msg, userId) {
@@ -618,6 +666,7 @@ function handleMessage(ws, msg, userId) {
       case 'start_game':   return onStartGame(ws, userId);
       case 'pick_tiles':   return onPickTiles(ws, msg);
       case 'leave_room':   return handleDisconnect(ws);
+      case 'visibility':   return onVisibility(ws, msg);
     case 'abandon_game': return onAbandonGame(ws);
       default: send(ws, { type:'error', message:`Unknown: ${msg.type}` });
     }
@@ -632,11 +681,20 @@ function onAuth(ws, { token }) {
   try {
     const user = jwt.verify(token, JWT_SECRET);
     const meta = clients.get(ws) || {};
-    clients.set(ws, { ...meta, userId: user.id });
+    clients.set(ws, { ...meta, userId: user.id, visible: meta.visible ?? true });
     send(ws, { type:'auth_ok', user:{ id:user.id, name:user.name, email:user.email } });
   } catch {
     send(ws, { type:'error', message:'Invalid session' });
   }
+}
+
+// Client sends this on every Page Visibility API change (tab foregrounded/
+// backgrounded); defaults to visible:true at connection time until the
+// first real event arrives, since the user just navigated here.
+function onVisibility(ws, { visible }) {
+  const meta = clients.get(ws);
+  if (!meta) return;
+  clients.set(ws, { ...meta, visible: !!visible });
 }
 
 // ── Lobby ──────────────────────────────────────────────────
@@ -670,7 +728,7 @@ function onCreateRoom(ws, { playerName, aiPlayers = [], roomCode }, userId) {
 
   const room = { code, phase:'lobby', players:allPlayers, gameState:null };
   rooms.set(code, room);
-  clients.set(ws, { roomCode:code, playerId, userId: userId||null });
+  clients.set(ws, { roomCode:code, playerId, userId: userId||null, visible:true });
 
   // Persist skeleton so it shows in game list immediately
   saveGame(code, null, allPlayers, 'lobby');
@@ -703,7 +761,7 @@ function onJoinRoom(ws, { playerName, roomCode }, userId) {
   const playerId = generateId();
   const player   = { id:playerId, name, color:PLAYER_COLORS[room.players.length], isAI:false, userId:userId||null };
   room.players.push(player);
-  clients.set(ws, { roomCode:code, playerId, userId:userId||null });
+  clients.set(ws, { roomCode:code, playerId, userId:userId||null, visible:true });
 
   saveGame(code, null, room.players, 'lobby');
   if (userId) linkPlayerToGame(code, userId, playerId, room.players.length-1);
@@ -731,7 +789,7 @@ function onRejoinRoom(ws, { roomCode }, userId) {
   const player = room.players.find(p => p.userId === userId);
   if (!player) return send(ws, { type:'error', message:'You are not in this game.' });
 
-  clients.set(ws, { roomCode:code, playerId:player.id, userId });
+  clients.set(ws, { roomCode:code, playerId:player.id, userId, visible:true });
   send(ws, { type:'room_rejoined', roomCode:code, playerId:player.id, players:room.players, gameState:room.gameState, roomPhase:room.phase });
   console.log(`[${code}] ${player.name} rejoined`);
 
@@ -765,6 +823,7 @@ function onStartGame(ws, userId) {
         title: 'Azul game started!',
         body: 'A game you are in has started — your move is coming up',
         roomCode: meta.roomCode,
+        kind: 'game_start',
       });
     }
   });
@@ -824,6 +883,7 @@ function onPickTiles(ws, payload) {
         title: 'Your turn in Azul!',
         body: `Round ${gs.round} — make your move`,
         roomCode: meta.roomCode,
+        kind: 'turn',
       });
     }
   }

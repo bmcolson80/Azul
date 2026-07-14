@@ -219,6 +219,11 @@ export function setEmailVerified(userId) {
   save();
 }
 
+export function updateUserName(userId, newName) {
+  db.run("UPDATE users SET name=? WHERE id=?", [newName.trim(), userId]);
+  save();
+}
+
 export function updateNotifyPrefs(userId, { notifyEmail }) {
   db.run("UPDATE users SET notify_email=? WHERE id=?",
     [notifyEmail ? 1 : 0, userId]);

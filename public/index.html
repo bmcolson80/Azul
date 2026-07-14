@@ -816,6 +816,9 @@ input#otp-code{letter-spacing:12px;font-size:28px}
     <button class="menu-item" onclick="openMenuPanel('panel-email')">
       <span class="menu-icon">✉️</span><span class="menu-label">Change Email</span>
     </button>
+    <button class="menu-item" onclick="openMenuPanel('panel-name')">
+      <span class="menu-icon">✏️</span><span class="menu-label">Change Display Name</span>
+    </button>
     <div class="menu-divider"></div>
     <div class="menu-section-title">NOTIFICATIONS</div>
     <button class="menu-item" onclick="openMenuPanel('panel-notif')">
@@ -895,6 +898,23 @@ input#otp-code{letter-spacing:12px;font-size:28px}
         <button class="btn btn-primary" onclick="confirmEmailChange()">Confirm New Email</button>
       </div>
     </div>
+  </div>
+</div>
+
+<!-- ── Change display name panel ── -->
+<div class="menu-panel" id="panel-name">
+  <div class="menu-panel-header">
+    <button class="menu-panel-back" onclick="closeMenuPanel('panel-name')">←</button>
+    <span class="menu-panel-title">CHANGE DISPLAY NAME</span>
+  </div>
+  <div class="menu-panel-body">
+    <p style="font-size:12px;color:rgba(255,255,255,.4);margin-bottom:16px;line-height:1.6">Your name is shown to other players and is shared across GamesNight.</p>
+    <div class="error-msg" id="name-change-error"></div>
+    <div class="field-group">
+      <label>Display Name</label>
+      <input type="text" id="name-change-input" placeholder="Your name" maxlength="20">
+    </div>
+    <button class="btn btn-primary" onclick="saveNameChange()">Save Name</button>
   </div>
 </div>
 
@@ -1156,6 +1176,12 @@ function connectWS() {
   ws.onmessage = ev => { try { handleWSMessage(JSON.parse(ev.data)); } catch {} };
 }
 
+// Lets the server suppress push/email when this exact room's tab is
+// foregrounded — the server already sees the update live over this socket.
+document.addEventListener('visibilitychange', () => {
+  sendWS({ type:'visibility', visible: document.visibilityState === 'visible' });
+});
+
 // ── Auto create/join from a GamesNight invite link ─────────
 let pendingAutoJoin = null; // { code, attempts }
 
@@ -1195,15 +1221,18 @@ function handleWSMessage(msg) {
     case 'room_created':
       pendingAutoJoin = null;
       myId = msg.playerId; myRoomCode = msg.roomCode;
+      sendWS({ type:'visibility', visible: document.visibilityState === 'visible' });
       showWaitingRoom(msg.players);
       break;
     case 'room_joined':
       pendingAutoJoin = null;
       myId = msg.playerId; myRoomCode = msg.roomCode;
+      sendWS({ type:'visibility', visible: document.visibilityState === 'visible' });
       showWaitingRoom(msg.players);
       break;
     case 'room_rejoined':
       myId = msg.playerId; myRoomCode = msg.roomCode;
+      sendWS({ type:'visibility', visible: document.visibilityState === 'visible' });
       // roomPhase = room-level phase ('lobby' or 'game')
       // gameState.phase = round phase ('factory', 'wall-tiling', 'end')
       if (msg.roomPhase === 'game' && msg.gameState) {
@@ -1987,6 +2016,7 @@ function openMenuPanel(id) {
   if (id === 'panel-notif') initNotifPanel();
 
   if (id === 'panel-email') initEmailPanel();
+  if (id === 'panel-name') initNamePanel();
   if (id === 'panel-profile') initProfilePanel();
 }
 
@@ -2095,6 +2125,33 @@ async function confirmEmailChange() {
     document.getElementById('user-name-display').textContent = data.user.name;
     showToast('Email updated to ' + _pendingNewEmail);
     closeMenuPanel('panel-email');
+    loadProfileForMenu();
+  } catch { errEl.textContent = 'Connection error'; errEl.style.display = 'block'; }
+}
+
+// ── Change display name panel ──────────────────────────────
+function initNamePanel() {
+  document.getElementById('name-change-error').style.display = 'none';
+  document.getElementById('name-change-input').value = _profileData?.name || '';
+}
+
+async function saveNameChange() {
+  const name = document.getElementById('name-change-input').value.trim();
+  const errEl = document.getElementById('name-change-error');
+  errEl.style.display = 'none';
+  if (!name) { errEl.textContent = 'Enter a display name.'; errEl.style.display = 'block'; return; }
+  try {
+    const res = await fetch('/api/profile/name', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ name }),
+    });
+    const data = await res.json();
+    if (!res.ok) { errEl.textContent = data.error; errEl.style.display = 'block'; return; }
+    if (_profileData) { _profileData.name = data.user.name; }
+    currentUser = data.user;
+    document.getElementById('user-name-display').textContent = data.user.name;
+    showToast('Name updated to ' + data.user.name);
+    closeMenuPanel('panel-name');
     loadProfileForMenu();
   } catch { errEl.textContent = 'Connection error'; errEl.style.display = 'block'; }
 }
